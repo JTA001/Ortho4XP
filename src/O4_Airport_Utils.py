@@ -77,7 +77,7 @@ def discover_airport_names(airport_layer, dico_airports):
                     pass
             try:
                 dico_airports[key]['boundary'] = geometry.Polygon(numpy.array([airport_layer.dicosmn[nodeid] for nodeid in airport_layer.dicosmw[osmid]])) if osmtype == 'w'\
-                    else ops.cascaded_union([geom for geom in [geometry.Polygon(numpy.array([airport_layer.dicosmn[nodeid] for nodeid in nodelist])) for nodelist in airport_layer.dicosmr[osmid]['outer']]]) if osmtype == 'r'\
+                    else ops.unary_union([geom for geom in [geometry.Polygon(numpy.array([airport_layer.dicosmn[nodeid] for nodeid in nodelist])) for nodelist in airport_layer.dicosmr[osmid]['outer']]]) if osmtype == 'r'\
                     else None
                 if dico_airports[key]['boundary'] and not dico_airports[key]['boundary'].is_valid:
                     UI.lvprint(
@@ -334,7 +334,7 @@ def sort_and_reconstruct_runways(tile, airport_layer, dico_airports):
             if keep_this:
                 runways_as_line.append((pol, runway_start, runway_end, width))
         # Save (overwrite) this into the dico_airport runway dictionnary
-        runway_area = VECT.ensure_MultiPolygon(ops.cascaded_union(
+        runway_area = VECT.ensure_MultiPolygon(ops.unary_union(
             [item[0] for item in runways_as_area+runways_as_line]))
         dico_airports[airport]['runway'] = (
             runway_area, runways_as_area, runways_as_line)
@@ -379,7 +379,7 @@ def build_hangar_areas(tile, airport_layer, dico_airports):
                 continue
             hangars.append(pol)
         hangars = VECT.ensure_MultiPolygon(
-            VECT.improved_buffer(ops.cascaded_union(hangars), 2, 1, 0.5))
+            VECT.improved_buffer(ops.unary_union(hangars), 2, 1, 0.5))
         dico_airports[airport]['hangar'] = hangars
 ####################################################################################################
 
@@ -403,7 +403,7 @@ def build_apron_areas(tile, airport_layer, dico_airports):
                           airport_layer.dicosmn[airport_layer.dicosmw[wayid][0]])
                 continue
             aprons.append(pol)
-        aprons = VECT.ensure_MultiPolygon(ops.cascaded_union(aprons))
+        aprons = VECT.ensure_MultiPolygon(ops.unary_union(aprons))
         dico_airports[airport]['apron'] = (
             aprons, dico_airports[airport]['apron'])
     return
@@ -430,10 +430,10 @@ def build_taxiway_areas(tile, airport_layer, dico_airports):
 def update_airport_boundaries(tile, dico_airports):
     for airport in dico_airports:
         apt = dico_airports[airport]
-        boundary = ops.cascaded_union(
+        boundary = ops.unary_union(
             [apt['taxiway'][0], apt['apron'][0], apt['hangar'], apt['runway'][0]])
         if apt['boundary']:
-            apt['boundary'] = VECT.ensure_MultiPolygon(ops.cascaded_union([affinity.translate(
+            apt['boundary'] = VECT.ensure_MultiPolygon(ops.unary_union([affinity.translate(
                 apt['boundary'], -tile.lon, -tile.lat), boundary]).buffer(0).simplify(0.00001))
         else:
             apt['boundary'] = VECT.ensure_MultiPolygon(
@@ -538,7 +538,7 @@ def smooth_raster_over_airports(tile, dico_airports, preserve_boundary=True):
         airport_im = Image.new(
             'L', (upscale*(colmax-colmin+1), upscale*(rowmax-rowmin+1)))
         airport_draw = ImageDraw.Draw(airport_im)
-        full_area = VECT.ensure_MultiPolygon(ops.cascaded_union([dico_airports[airport]['boundary'], dico_airports[airport]['runway']
+        full_area = VECT.ensure_MultiPolygon(ops.unary_union([dico_airports[airport]['boundary'], dico_airports[airport]['runway']
                                              [0], dico_airports[airport]['hangar'], dico_airports[airport]['taxiway'][0], dico_airports[airport]['apron'][0]]))
         for polygon in full_area:
             exterior_pol_pix = [(round(upscale*(X-X0)/xstep), round(upscale*(Y1-Y)/ystep))
@@ -685,10 +685,10 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
                         [trav, alti_trav]), 'DUMMY', check=True)
                 pols.append(pol)
         for pol in pols:
-            for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.cascaded_union([pol2 for pol2 in pols if pol2 != pol]))):
+            for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))):
                 seeds['RUNWAY'].append(numpy.array(
                     subpol.representative_point()))
-            for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.cascaded_union([pol2 for pol2 in pols if pol2 != pol]))):
+            for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))):
                 seeds['RUNWAY'].append(numpy.array(
                     subpol.representative_point()))
         # Then taxiways
@@ -742,7 +742,7 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
     plural_taxi = 's' if total_taxi > 1 else ''
     UI.vprint(1, "   Auto-patched", total_rwy, "runway"+plural_rwy +
               " and", total_taxi, "piece"+plural_taxi+" of taxiway.")
-    return ops.cascaded_union([dico_airports[airport]['runway'][0] for airport in dico_airports] +
+    return ops.unary_union([dico_airports[airport]['runway'][0] for airport in dico_airports] +
                               [dico_airports[airport]['taxiway'][0] for airport in dico_airports] +
                               [dico_airports[airport]['apron'][0] for airport in dico_airports])
 ####################################################################################################
@@ -793,7 +793,7 @@ def flatten_helipads(airport_layer, vector_map, tile, treated_area):
         # vector_map.insert_way(numpy.hstack([way,alti_way]),'INTERP_ALT',check=True)
         # seeds.append(numpy.array(pol.representative_point()))
         total += 1
-    helipad_area = ops.cascaded_union(multipol)
+    helipad_area = ops.unary_union(multipol)
     # helipads that are only encoded as nodes, they will be grown into hexagons
     for nodeid in (x for x in airport_layer.dicosmn if x in airport_layer.dicosmtags['n'] and 'aeroway' in airport_layer.dicosmtags['n'][x] and airport_layer.dicosmtags['n'][x]['aeroway'] == 'helipad'):
         center = numpy.round(numpy.array(
@@ -809,7 +809,7 @@ def flatten_helipads(airport_layer, vector_map, tile, treated_area):
         # seeds.append(center)
         total += 1
     helipad_area = VECT.ensure_MultiPolygon(
-        VECT.cut_to_tile(ops.cascaded_union(multipol)))
+        VECT.cut_to_tile(ops.unary_union(multipol)))
     for pol in helipad_area:
         if (pol.is_empty) or (not pol.is_valid) or (not pol.area):
             continue

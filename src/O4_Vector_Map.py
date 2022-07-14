@@ -174,7 +174,7 @@ def include_airports(vector_map, tile):
     (patches_area, patches_list) = include_patches(vector_map, tile)
     runway_taxiway_apron_area = APT.encode_runways_taxiways_and_aprons(
         tile, airport_layer, dico_airports, vector_map, patches_list)
-    treated_area = ops.cascaded_union(
+    treated_area = ops.unary_union(
         [patches_area, runway_taxiway_apron_area])
     APT.encode_hangars(tile, dico_airports, vector_map, patches_list)
     APT.flatten_helipads(airport_layer, vector_map, tile, treated_area)
@@ -667,7 +667,7 @@ def keep_obj8(lat_anchor, lon_anchor, alt_anchor, heading_anchor, objfile_name, 
                         vector_map.seeds['INTERP_ALT'] = [seed]
                     polist.append(geometry.Polygon(
                         [vector_map.nodes_dico[a], vector_map.nodes_dico[b], vector_map.nodes_dico[c], vector_map.nodes_dico[a]]))
-                multipol = VECT.ensure_MultiPolygon(ops.cascaded_union(polist))
+                multipol = VECT.ensure_MultiPolygon(ops.unary_union(polist))
             except:
                 pass
     f.close()

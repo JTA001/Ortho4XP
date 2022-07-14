@@ -680,9 +680,9 @@ def coastline_to_MultiPolygon(coastline, lat, lon, custom_source=False):
                 return geometry.MultiPolygon()
     if not bdpolys:  # and islands:
         bdpolys.append([(0, 0), (0, 1), (1, 1), (1, 0)])
-    outpol = ops.cascaded_union(
+    outpol = ops.unary_union(
         [geometry.Polygon(bdpoly).buffer(0) for bdpoly in bdpolys])
-    inpol = ensure_MultiPolygon(cut_to_tile(ops.cascaded_union(
+    inpol = ensure_MultiPolygon(cut_to_tile(ops.unary_union(
         [geometry.Polygon(loop).buffer(0) for loop in islands+interior_seas])))
     return ensure_MultiPolygon(outpol.symmetric_difference(inpol))
 ##############################################################################
