@@ -202,7 +202,12 @@ class Ortho4XP_GUI(tk.Tk):
 
         # Console
         self.console = tk.Text(self.frame_console, bd=0)
-        self.console.grid(row=0, column=0, sticky=N+S+E+W)
+        self.console.pack(side=LEFT, fill=BOTH, expand=1)
+        self.scrollbar = ttk.Scrollbar(
+            self.frame_console, orient=VERTICAL, command=self.console.yview)
+        self.scrollbar.pack(side=RIGHT, fill=Y)
+        self.console.configure(yscrollcommand=self.scrollbar.set)
+        self.frame_inside = Frame(self.console)
         self.frame_console.rowconfigure(0, weight=1)
         self.frame_console.columnconfigure(0, weight=1)
 
