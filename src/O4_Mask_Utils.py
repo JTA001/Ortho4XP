@@ -616,8 +616,8 @@ if __name__ == '__main__':
         print("Changing coordinates to match EPSG code")
         import pyproj
         import shapely.ops
-        s_proj = pyproj.Proj(init='epsg:4326')
-        t_proj = pyproj.Proj(init='epsg:'+epsg_code)
+        s_proj = pyproj.Proj('epsg:4326')
+        t_proj = pyproj.Proj('epsg:'+epsg_code)
         def reprojection(x, y): return pyproj.transform(s_proj, t_proj, x, y)
         multipolygon_area = shapely.ops.transform(
             reprojection, multipolygon_area)

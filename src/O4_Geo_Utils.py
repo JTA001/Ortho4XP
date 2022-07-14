@@ -23,8 +23,8 @@ def dist(A, B):
 
 
 epsg = {}
-epsg['4326'] = pyproj.Proj(init='epsg:4326')
-epsg['3857'] = pyproj.Proj(init='epsg:3857')
+epsg['4326'] = pyproj.Proj('epsg:4326')
+epsg['3857'] = pyproj.Proj('epsg:3857')
 
 
 ##############################################################################
