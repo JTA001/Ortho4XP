@@ -540,7 +540,7 @@ def smooth_raster_over_airports(tile, dico_airports, preserve_boundary=True):
         airport_draw = ImageDraw.Draw(airport_im)
         full_area = VECT.ensure_MultiPolygon(ops.unary_union([dico_airports[airport]['boundary'], dico_airports[airport]['runway']
                                              [0], dico_airports[airport]['hangar'], dico_airports[airport]['taxiway'][0], dico_airports[airport]['apron'][0]]))
-        for polygon in full_area:
+        for polygon in full_area.geoms:
             exterior_pol_pix = [(round(upscale*(X-X0)/xstep), round(upscale*(Y1-Y)/ystep))
                                 for (X, Y) in polygon.exterior.coords]
             airport_draw.polygon(exterior_pol_pix, fill='white')
@@ -650,7 +650,7 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
                 (runway_start, runway_end)), refine_size)
             way_r = VECT.shift_way(way, runway_width, 'right')
             way_l = VECT.shift_way(way, runway_width, 'left')
-            for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(runway_pol)):
+            for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(runway_pol)).geoms:
                 boundary = pol.exterior
                 abscissae = [boundary.project(geometry.Point(x))
                              for x in boundary.coords]
@@ -685,10 +685,10 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
                         [trav, alti_trav]), 'DUMMY', check=True)
                 pols.append(pol)
         for pol in pols:
-            for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))):
+            for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
                 seeds['RUNWAY'].append(numpy.array(
                     subpol.representative_point()))
-            for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))):
+            for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
                 seeds['RUNWAY'].append(numpy.array(
                     subpol.representative_point()))
         # Then taxiways
@@ -698,7 +698,7 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
         # update it
         apt['taxiway'] = (cleaned_taxiway_area, apt['taxiway'][1])
         # cleaned_taxiway_area=VECT.improved_buffer(apt['taxiway'][0].difference(VECT.improved_buffer(apt['hangar'],20,0,0)),0,1,0.5)
-        for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(cleaned_taxiway_area)):
+        for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(cleaned_taxiway_area)).geoms:
             if not pol.is_valid or pol.is_empty or pol.area < 1e-9:
                 continue
             way = numpy.round(VECT.refine_way(
@@ -755,7 +755,7 @@ def encode_hangars(tile, dico_airports, vector_map, patches_list):
     for airport in dico_airports:
         if airport in patches_list:
             continue
-        for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(dico_airports[airport]['hangar'])):
+        for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(dico_airports[airport]['hangar'])).geoms:
             way = numpy.array(pol.exterior.coords)
             alt = tile.dem.alt_vec(way)
             if alt.max()-alt.min() <= 1.5:
@@ -810,7 +810,7 @@ def flatten_helipads(airport_layer, vector_map, tile, treated_area):
         total += 1
     helipad_area = VECT.ensure_MultiPolygon(
         VECT.cut_to_tile(ops.unary_union(multipol)))
-    for pol in helipad_area:
+    for pol in helipad_area.geoms:
         if (pol.is_empty) or (not pol.is_valid) or (not pol.area):
             continue
         way = numpy.array(pol.exterior.coords)

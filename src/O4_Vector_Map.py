@@ -315,7 +315,7 @@ def include_sea(vector_map, tile):
             remainder = VECT.ensure_MultiLineString(ops.linemerge(remainder))
         UI.vprint(3, "...done.")
         coastline = geometry.MultiLineString(
-            [line for line in remainder]+[line for line in loops])
+            [line for line in remainder.geoms]+[line for line in loops.geoms])
         sea_area = VECT.ensure_MultiPolygon(VECT.coastline_to_MultiPolygon(
             coastline, tile.lat, tile.lon, custom_source))
         if sea_area.geoms:
