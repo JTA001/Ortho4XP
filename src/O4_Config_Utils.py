@@ -2,7 +2,7 @@ import os
 from math import ceil
 import tkinter as tk
 import tkinter.ttk as ttk
-from tkinter import RIDGE, N, S, E, W, filedialog
+from tkinter import FLAT, N, S, E, W, filedialog
 import O4_File_Names as FNAMES
 import O4_UI_Utils as UI
 import O4_DEM_Utils as DEM
@@ -260,14 +260,14 @@ class Ortho4XP_Config(tk.Toplevel):
         self.parent = parent
 
         # Frames
-        self.main_frame = tk.Frame(self, border=4,
-                                   relief=RIDGE, bg='light green')
+        self.main_frame = tk.Frame(self, border=1,
+                                   relief=FLAT, bg='light grey')
         self.frame_cfg = tk.Frame(
-            self.main_frame, border=0, padx=5, pady=self.pady, bg="light green")
+            self.main_frame, border=1, padx=5, pady=self.pady, bg="light grey")
         self.frame_dem = tk.Frame(
-            self.frame_cfg, border=0, padx=0, pady=self.pady, bg="light green")
+            self.frame_cfg, border=1, padx=0, pady=self.pady, bg="light grey")
         self.frame_lastbtn = tk.Frame(
-            self.main_frame, border=0, padx=5, pady=self.pady, bg="light green")
+            self.main_frame, border=1, padx=5, pady=self.pady, bg="light grey")
         # Frames properties
         for j in range(8):
             self.frame_cfg.columnconfigure(j, weight=1)
@@ -287,12 +287,12 @@ class Ortho4XP_Config(tk.Toplevel):
             self.v_[item] = tk.StringVar()
         self.entry_ = {}
         self.folder_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Folder.gif'))
+            file=os.path.join(FNAMES.Utils_dir, 'Folder Searches.gif'))
 
         col = 0
         next_row = 0
         for (title, sub_list) in (("Vector data", list_vector_vars), ("Mesh", list_mesh_vars), ("Masks", list_mask_vars), ("DSF/Imagery", list_dsf_vars)):
-            tk.Label(self.frame_cfg, text=title, bg='light green', anchor=W, font="TKFixedFont 14").grid(
+            tk.Label(self.frame_cfg, text=title, bg='light grey', anchor=W, font="TKFixedFont 14").grid(
                 row=0, column=col, columnspan=2, pady=(0, 10), sticky=N+S+E+W)
             row = 1
             for item in sub_list:
@@ -318,7 +318,7 @@ class Ortho4XP_Config(tk.Toplevel):
         item = 'custom_dem'
         ttk.Button(self.frame_dem, text=item, takefocus=False, command=lambda item=item: self.popup(
             item, cfg_vars[item]['hint'])).grid(row=0, column=0, padx=2, pady=2, sticky=E+W)
-        # self.entry_[item]=tk.Entry(self.frame_dem,textvariable=self.v_[item],bg='white',fg='blue',width=80)
+        # self.entry_[item]=tk.Entry(self.frame_dem,textvariable=self.v_[item],bg='white',fg='black',width=80)
         values = DEM.available_sources[1::2]
         self.entry_[item] = ttk.Combobox(self.frame_dem, values=values, textvariable=self.v_[
                                          item], width=80, style='O4.TCombobox')
@@ -340,7 +340,7 @@ class Ortho4XP_Config(tk.Toplevel):
         ttk.Separator(self.frame_cfg, orient=tk.HORIZONTAL).grid(
             row=row, column=0, columnspan=8, sticky=N+S+E+W)
         row += 1
-        tk.Label(self.frame_cfg, text="Application ", bg='light green', anchor=W,
+        tk.Label(self.frame_cfg, text="Application ", bg='light grey', anchor=W,
                  font="TKFixedFont 14").grid(row=row, column=0, columnspan=4, pady=10, sticky=N+S+E+W)
         row += 1
 
@@ -360,7 +360,7 @@ class Ortho4XP_Config(tk.Toplevel):
                                                  item], width=6, state='readonly', style='O4.TCombobox')
             else:
                 self.entry_[item] = tk.Entry(self.frame_cfg, textvariable=self.v_[
-                                             item], width=7, bg='white', fg='blue')
+                                             item], width=7, bg='white', fg='black')
             self.entry_[item].grid(row=row, column=col+1,
                                    padx=(0, 20), pady=2, sticky=N+S+W)
             j += 1
@@ -371,7 +371,7 @@ class Ortho4XP_Config(tk.Toplevel):
             ttk.Button(self.frame_cfg, text=item, takefocus=False, command=lambda item=item: self.popup(
                 item, cfg_vars[item]['hint'])).grid(row=row, column=0, padx=2, pady=2, sticky=E+W+N+S)
             self.entry_[item] = tk.Entry(self.frame_cfg, textvariable=self.v_[
-                                         item], bg='white', fg='blue')
+                                         item], bg='white', fg='black')
             self.entry_[item].grid(row=row, column=1, columnspan=5, padx=(
                 2, 0), pady=2, sticky=N+S+E+W)
             ttk.Button(self.frame_cfg, image=self.folder_icon, command=lambda item=item: self.choose_dir(

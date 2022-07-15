@@ -5,7 +5,7 @@ from math import floor, cos, pi
 import queue
 import threading
 import tkinter as tk
-from tkinter import FLAT, RIDGE, N, S, E, VERTICAL, W, NW, ALL, END, LEFT, RIGHT, CENTER, HORIZONTAL, BOTH, Y, filedialog, Frame
+from tkinter import FLAT, FLAT, N, S, E, VERTICAL, W, NW, ALL, END, LEFT, RIGHT, CENTER, HORIZONTAL, BOTH, Y, filedialog, Frame
 import tkinter.ttk as ttk
 import tkinter.ttk as ttk
 from PIL import Image, ImageTk
@@ -67,7 +67,7 @@ class Ortho4XP_GUI(tk.Tk):
         # Resources
         self.title('Ortho4XP '+O4_Version.version)
         self.folder_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Folder.gif'))
+            file=os.path.join(FNAMES.Utils_dir, 'Folder Searches.gif'))
         self.earth_icon = tk.PhotoImage(
             file=os.path.join(FNAMES.Utils_dir, 'Earth.gif'))
         self.loupe_icon = tk.PhotoImage(
@@ -82,24 +82,24 @@ class Ortho4XP_GUI(tk.Tk):
         # Frame instances and placement
         # Level 0
         self.frame_top = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_top.grid(row=0, column=0, sticky=N+S+W+E)
         self.frame_console = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_console.grid(row=1, column=0, sticky=N+S+W+E)
         # Level 1
         self.frame_tile = tk.Frame(
-            self.frame_top, border=0, padx=5, pady=5, bg="light grey")
+            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
         self.frame_tile.grid(row=0, column=0, sticky=N+S+W+E)
         self.frame_steps = tk.Frame(
-            self.frame_top, border=0, padx=5, pady=5, bg="light grey")
+            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
         self.frame_steps.grid(row=2, column=0, sticky=N+S+W+E)
         self.frame_bars = tk.Frame(
-            self.frame_top, border=0, padx=5, pady=5, bg="light grey")
+            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
         self.frame_bars.grid(row=3, column=0, sticky=N+S+W+E)
         # Level 2
         self.frame_folder = tk.Frame(
-            self.frame_tile, border=0, padx=0, pady=0, bg="light grey")
+            self.frame_tile, border=1, padx=0, pady=0, bg="light grey")
         self.frame_folder.grid(row=1, column=0, columnspan=8, sticky=N+S+W+E)
 
         # Widgets instances and placement
@@ -509,19 +509,19 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
 
         # Frames
         self.frame_left = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_left.grid(row=0, column=0, sticky=N+S+W+E)
 
         self.frame_right = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_right.grid(row=0, column=1, sticky=N+S+W+E)
         self.frame_right.rowconfigure(0, weight=1)
         self.frame_right.columnconfigure(0, weight=1)
 
         # Widgets
         row = 0
-        tk.Label(self.frame_left, anchor=W, text="Preview params ", fg="light grey",
-                 bg="dark green", font="Helvetica 16 bold italic").grid(row=row, column=0, sticky=W+E)
+        tk.Label(self.frame_left, anchor=W, text="Preview params ", fg="black",
+                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
         row += 1
 
         tk.Label(self.frame_left, anchor=W, text="Source : ", bg="light grey").grid(
@@ -541,8 +541,8 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         ttk.Button(self.frame_left, text='Preview', command=lambda: self.preview_tile(
             lat, lon)).grid(row=row, padx=5, column=0, sticky=N+S+E+W)
         row += 1
-        tk.Label(self.frame_left, anchor=W, text="Zone params ", fg="light grey", bg="dark green",
-                 font="Helvetica 16 bold italic").grid(row=row, column=0, pady=10, sticky=W+E)
+        tk.Label(self.frame_left, anchor=W, text="Zone params ", fg="black", bg="dark grey",
+                 font="Helvetica 16 bold").grid(row=row, column=0, pady=10, sticky=W+E)
         row += 1
 
         tk.Label(self.frame_left, anchor=W, text="Source : ", bg="light grey").grid(
@@ -553,21 +553,21 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         row += 1
 
         self.frame_zlbtn = tk.Frame(
-            self.frame_left, border=0, bg='light grey')
+            self.frame_left, border=1, bg='light grey')
         for i in range(5):
             self.frame_zlbtn.columnconfigure(i, weight=1)
         self.frame_zlbtn.grid(row=row, column=0, columnspan=1, sticky=N+S+W+E)
         row += 1
         for zl in range(15, 20):
             col = zl-15
-            tk.Radiobutton(self.frame_zlbtn, bd=4, bg=self.dico_color[zl],
+            tk.Radiobutton(self.frame_zlbtn, bd=2, bg=self.dico_color[zl],
                            activebackground=self.dico_color[zl], selectcolor=self.dico_color[zl],
                            height=2, indicatoron=0, text='ZL'+str(zl), variable=self.zlpol, value=zl,
                            command=self.redraw_poly).grid(row=0, column=col, padx=0, pady=0, sticky=N+S+E+W)
 
         tk.Label(self.frame_left, anchor=W, text="Approx. Add. Size : ",
                  bg="light grey").grid(row=row, column=0, padx=5, pady=10, sticky=W)
-        tk.Entry(self.frame_left, width=7, justify=RIGHT, bg="white", fg="blue",
+        tk.Entry(self.frame_left, width=7, justify=RIGHT, bg="white", fg="black",
                  textvariable=self.gb).grid(row=row, column=0, padx=5, pady=10, sticky=E)
         row += 1
 
@@ -944,10 +944,10 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
 
         # Frames
         self.frame_left = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_left.grid(row=0, column=0, sticky=N+S+W+E)
         self.frame_right = tk.Frame(
-            self, border=4, relief=RIDGE, bg='light grey')
+            self, border=1, relief=FLAT, bg='light grey')
         self.frame_right.grid(row=0, rowspan=60, column=1, sticky=N+S+W+E)
         self.frame_right.rowconfigure(0, weight=1, minsize=self.canvas_min_y)
         self.frame_right.columnconfigure(
@@ -955,16 +955,16 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
 
         # Widgets
         row = 0
-        tk.Label(self.frame_left, anchor=W, text="Active tile", fg="light grey",
-                 bg="dark green", font="Helvetica 16 bold italic").grid(row=row, column=0, sticky=W+E)
+        tk.Label(self.frame_left, anchor=W, text="Active tile", fg="black",
+                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
         row += 1
         self.latlon_entry = tk.Entry(
             self.frame_left, width=8, bg="white", fg="black", textvariable=self.latlon)
         self.latlon_entry.grid(row=row, column=0, padx=5, pady=5, sticky=N+S)
         row += 1
         # Trash
-        tk.Label(self.frame_left, anchor=W, text="Erase cached data", fg="light grey",
-                 bg="dark green", font="Helvetica 16 bold italic").grid(row=row, column=0, sticky=W+E)
+        tk.Label(self.frame_left, anchor=W, text="Erase cached data", fg="black",
+                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
         row += 1
         for item in self.list_del_ckbtn:
             tk.Checkbutton(self.frame_left, text=item, anchor=W, variable=self.v_[
@@ -974,8 +974,8 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
             row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
         row += 1
         # Batch build
-        tk.Label(self.frame_left, anchor=W, text="Batch build tiles", fg="light grey",
-                 bg="dark green", font="Helvetica 16 bold italic").grid(row=row, column=0, sticky=W+E)
+        tk.Label(self.frame_left, anchor=W, text="Batch build tiles", fg="black",
+                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
         row += 1
         for item in self.list_do_ckbtn:
             tk.Checkbutton(self.frame_left, text=item, anchor=W, variable=self.v_[
@@ -1045,7 +1045,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
         threading.Thread(target=self.preview_existing_tiles).start()
 
     def preview_existing_tiles(self):
-        dico_color = {11: 'blue', 12: 'blue', 13: 'blue', 14: 'blue',
+        dico_color = {11: 'black', 12: 'black', 13: 'black', 14: 'black',
                       15: 'cyan', 16: 'green', 17: 'yellow', 18: 'orange', 19: 'red'}
         if self.dico_tiles_done:
             for tile in self.dico_tiles_done:
@@ -1066,7 +1066,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                     [x0, y0] = GEO.wgs84_to_pix(lat+1, lon, self.earthzl)
                     [x1, y1] = GEO.wgs84_to_pix(lat, lon+1, self.earthzl)
                     if os.path.isfile(os.path.join(self.working_dir, dir_name, "Earth nav data", FNAMES.long_latlon(lat, lon)+'.dsf')):
-                        color = 'blue'
+                        color = 'black'
                         content = ''
                         try:
                             tmpf = open(os.path.join(
@@ -1124,7 +1124,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                         continue
                     [x0, y0] = GEO.wgs84_to_pix(lat+1, lon, self.earthzl)
                     [x1, y1] = GEO.wgs84_to_pix(lat, lon+1, self.earthzl)
-                    color = 'blue'
+                    color = 'black'
                     content = ''
                     try:
                         tmpf = open(os.path.join(
