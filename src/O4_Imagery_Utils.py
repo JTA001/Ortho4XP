@@ -1301,7 +1301,7 @@ def build_geotiffs(tile, texture_attributes_list):
             convert_texture(tile, til_x_left, til_y_top,
                             zoomlevel, provider_code, type='tif')
         done += 1
-        UI.progress_bar(1, int(100*done/todo))
+        UI.progress_bar(1, int(100*done/todo),"Building Geotiffs:")
         if UI.red_flag:
             UI.exit_message_and_bottom_line()
     UI.timings_and_bottom_line(timer)

@@ -137,7 +137,7 @@ def build_masks(tile, for_imagery=False):
         for i in range(0, nbr_tri_in):
             if i % step_stones == 0:
                 percent += 1
-                UI.progress_bar(1, int(percent*5/10))
+                UI.progress_bar(1, int(percent*5/10), "Building Mask")
                 if UI.red_flag:
                     UI.exit_message_and_bottom_line()
                     return 0
@@ -236,7 +236,7 @@ def build_masks(tile, for_imagery=False):
             for i in range(0, nbr_tri_in):
                 if i % step_stones == 0:
                     percent += 1
-                    UI.progress_bar(1, int(percent*5/10))
+                    UI.progress_bar(1, int(percent*5/10), "Building Mask")
                     if UI.red_flag:
                         UI.exit_message_and_bottom_line()
                         return 0
@@ -486,7 +486,7 @@ def build_masks(tile, for_imagery=False):
         return 1
     parallel_execute(build_mask, masks_queue,
                      masks_build_slots, progress=dico_progress)
-    UI.progress_bar(1, 100)
+    UI.progress_bar(1, 100, "Building Mask finished")
     UI.timings_and_bottom_line(timer)
     UI.logprint("Step 2.5 for tile lat=", tile.lat,
                 ", lon=", tile.lon, ": normal exit.")

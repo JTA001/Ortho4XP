@@ -435,7 +435,7 @@ def OSM_to_MultiLineString(osm_layer, lat, lon, tags_for_exclusion=set(), filter
     filtered_segs = 0
     for wayid in osm_layer.dicosmfirst['w']:
         if done % step == 0:
-            UI.progress_bar(1, int(100*done/todo))
+            UI.progress_bar(1, int(100*done/todo), "OSM to Multi Line String")
         if tags_for_exclusion and wayid in osm_layer.dicosmtags['w'] \
                 and not set(osm_layer.dicosmtags['w'][wayid].keys()).isdisjoint(tags_for_exclusion):
             done += 1
@@ -455,7 +455,7 @@ def OSM_to_MultiLineString(osm_layer, lat, lon, tags_for_exclusion=set(), filter
         except:
             pass
         done += 1
-    UI.progress_bar(1, 100)
+    UI.progress_bar(1, 100, "OSM to Multi Line String finished")
     if not filter:
         return geometry.MultiLineString(multiline)
     else:
@@ -474,7 +474,7 @@ def OSM_to_MultiPolygon(osm_layer, lat, lon, filter=None):
     done = 0
     for wayid in osm_layer.dicosmfirst['w']:
         if done % step == 0:
-            UI.progress_bar(1, int(100*done/todo))
+            UI.progress_bar(1, int(100*done/todo), "OSM to Multi Polygon")
         if osm_layer.dicosmw[wayid][0] != osm_layer.dicosmw[wayid][-1]:
             UI.logprint("Non closed way starting at",
                         osm_layer.dicosmn[osm_layer.dicosmw[wayid][0]], ", skipped.")
@@ -502,7 +502,7 @@ def OSM_to_MultiPolygon(osm_layer, lat, lon, filter=None):
         done += 1
     for relid in osm_layer.dicosmfirst['r']:
         if done % step == 0:
-            UI.progress_bar(1, int(100*done/todo))
+            UI.progress_bar(1, int(100*done/todo), "OSM to Multi Polygon")
         try:
             multiout = [geometry.Polygon(numpy.round(numpy.array([osm_layer.dicosmn[nodeid]
                                                                   for nodeid in nodelist], dtype=numpy.float64)-numpy.array([lon, lat], dtype=numpy.float64), 7))
@@ -542,6 +542,6 @@ def OSM_to_MultiPolygon(osm_layer, lat, lon, filter=None):
     else:
         ret_val = geometry.MultiPolygon(multilist)
         UI.vprint(2, "    Total number of geometries:", len(ret_val.geoms))
-    UI.progress_bar(1, 100)
+    UI.progress_bar(1, 100, "OSM to Multi Polygon finished")
     return ret_val
 ##############################################################################

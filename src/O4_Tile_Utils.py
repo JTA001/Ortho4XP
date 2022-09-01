@@ -26,11 +26,11 @@ def download_textures(tile, download_queue, convert_queue):
     while True:
         texture_attributes = download_queue.get()
         if isinstance(texture_attributes, str) and texture_attributes == 'quit':
-            UI.progress_bar(2, 100)
+            UI.progress_bar(2, 100, "Downloading textures")
             break
         if IMG.build_jpeg_ortho(tile, *texture_attributes):
             done += 1
-            UI.progress_bar(2, int(100*done/(done+download_queue.qsize())))
+            UI.progress_bar(2, int(100*done/(done+download_queue.qsize())), "Downloading textures")
             convert_queue.put((tile, *texture_attributes))
         if UI.red_flag:
             UI.vprint(1, "Download process interrupted.")

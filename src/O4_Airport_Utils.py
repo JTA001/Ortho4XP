@@ -4,6 +4,11 @@ import numpy
 from shapely import geometry,  affinity,  ops
 from PIL import Image, ImageDraw
 from rtree import index
+
+#catching shapely 2.0 deprecation warnings
+import warnings
+from shapely.errors import ShapelyDeprecationWarning
+
 import O4_UI_Utils as UI
 import O4_Vector_Utils as VECT
 import O4_Geo_Utils as GEO
@@ -685,12 +690,12 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
                         [trav, alti_trav]), 'DUMMY', check=True)
                 pols.append(pol)
         for pol in pols:
-            for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
-                seeds['RUNWAY'].append(numpy.array(
-                    subpol.representative_point()))
-            for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
-                seeds['RUNWAY'].append(numpy.array(
-                    subpol.representative_point()))
+            with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                for subpol in VECT.ensure_MultiPolygon(pol.difference(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
+                    seeds['RUNWAY'].append(numpy.array(subpol.representative_point()))
+                for subpol in VECT.ensure_MultiPolygon(pol.intersection(ops.unary_union([pol2 for pol2 in pols if pol2 != pol]))).geoms:
+                    seeds['RUNWAY'].append(numpy.array(subpol.representative_point()))
         # Then taxiways
         # Not sure if it is best to separate them from the runway or not...
         cleaned_taxiway_area = VECT.improved_buffer(apt['taxiway'][0].difference(VECT.improved_buffer(
@@ -701,19 +706,17 @@ def encode_runways_taxiways_and_aprons(tile, airport_layer, dico_airports, vecto
         for pol in VECT.ensure_MultiPolygon(VECT.cut_to_tile(cleaned_taxiway_area)).geoms:
             if not pol.is_valid or pol.is_empty or pol.area < 1e-9:
                 continue
-            way = numpy.round(VECT.refine_way(
-                numpy.array(pol.exterior), 20), 7)
-            alti_way = numpy.array([VECT.weighted_alt(
-                node, alt_idx, alt_dico, tile.dem) for node in way]).reshape((len(way), 1))
+            way = numpy.round(VECT.refine_way(numpy.array(pol.exterior.coords), 20), 7) #catching shapely 2.0 deprecation warnings
+            alti_way = numpy.array([VECT.weighted_alt(node, alt_idx, alt_dico, tile.dem) for node in way]).reshape((len(way), 1))
             vector_map.insert_way(numpy.hstack(
                 [way, alti_way]), 'TAXIWAY', check=True)
-            for subpol in pol.interiors:
-                way = numpy.round(VECT.refine_way(numpy.array(subpol), 20), 7)
-                alti_way = numpy.array([VECT.weighted_alt(
-                    node, alt_idx, alt_dico, tile.dem) for node in way]).reshape((len(way), 1))
-                vector_map.insert_way(numpy.hstack(
-                    [way, alti_way]), 'TAXIWAY', check=True)
-            seeds['TAXIWAY'].append(numpy.array(pol.representative_point()))
+            with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                for subpol in pol.interiors:
+                    way = numpy.round(VECT.refine_way(numpy.array(subpol), 20), 7)
+                    alti_way = numpy.array([VECT.weighted_alt(node, alt_idx, alt_dico, tile.dem) for node in way]).reshape((len(way), 1))
+                    vector_map.insert_way(numpy.hstack([way, alti_way]), 'TAXIWAY', check=True)
+                seeds['TAXIWAY'].append(numpy.array(pol.representative_point()))
         # Try to bring some aprons with, we are looking for the small ones along runways, you just need to add the 'include' tag to that apron in JOSM (local copy)
         for wayid in apt['apron'][1]:
             if wayid not in airport_layer.dicosmtags['w'] or 'include' not in airport_layer.dicosmtags['w'][wayid]:
@@ -763,7 +766,9 @@ def encode_hangars(tile, dico_airports, vector_map, patches_list):
                     numpy.mean(tile.dem.alt_vec(way))
                 vector_map.insert_way(numpy.hstack(
                     [way, alti_way]), 'HANGAR', check=True)
-                seeds.append(numpy.array(pol.representative_point()))
+                with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                    warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                    seeds.append(numpy.array(pol.representative_point()))
     if seeds:
         if 'HANGAR' in vector_map.seeds:
             vector_map.seeds['HANGAR'] += seeds
@@ -817,7 +822,9 @@ def flatten_helipads(airport_layer, vector_map, tile, treated_area):
         alti_way = numpy.ones((len(way), 1))*numpy.mean(tile.dem.alt_vec(way))
         vector_map.insert_way(numpy.hstack(
             [way, alti_way]), 'INTERP_ALT', check=True)
-        seeds.append(numpy.array(pol.representative_point()))
+        with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+            warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+            seeds.append(numpy.array(pol.representative_point()))
     if seeds:
         if 'INTERP_ALT' in vector_map.seeds:
             vector_map.seeds['INTERP_ALT'] += seeds

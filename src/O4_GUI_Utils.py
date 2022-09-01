@@ -1,13 +1,16 @@
+from cProfile import label
 import os
+import select
 import sys
 import shutil
 from math import floor, cos, pi
 import queue
 import threading
 import tkinter as tk
-from tkinter import FLAT, FLAT, N, S, E, VERTICAL, W, NW, ALL, END, LEFT, RIGHT, CENTER, HORIZONTAL, BOTH, Y, filedialog, Frame
-import tkinter.ttk as ttk
-import tkinter.ttk as ttk
+from tkinter import ANCHOR, BOTTOM, DISABLED, EW, FLAT, N, S, E, TOP, VERTICAL, W, NW, ALL, END, LEFT, RIGHT, CENTER, HORIZONTAL, BOTH, Y, filedialog
+from tkinter import ttk
+from tkinter.font import NORMAL
+from turtle import width
 from PIL import Image, ImageTk
 import O4_Version
 import O4_Imagery_Utils as IMG
@@ -20,6 +23,8 @@ import O4_Mask_Utils as MASK
 import O4_Tile_Utils as TILE
 import O4_UI_Utils as UI
 import O4_Config_Utils as CFG
+import sv_ttk
+
 
 # Set OsX=True if you prefer the OsX way of drawing existing tiles but are on Linux or Windows.
 OsX = 'dar' in sys.platform
@@ -34,18 +39,10 @@ class Ortho4XP_GUI(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
-        O4 = ttk.Style()
-        O4.theme_use('alt')
-        O4.configure('Flat.TButton', background='light grey', highlightbackground='light grey',
-                     selectbackground='light grey', highlightcolor='light grey', highlightthickness=0, relief='flat')
-        O4.map('Flat.TButton', background=[
-               ('disabled', 'pressed', '!focus', 'active', 'light grey')])
-        O4.configure('O4.TCombobox', selectbackground='white', selectforeground='black',
-                     fieldbackground='white', foreground='black', background='white')
-        O4.map('O4.TCombobox', fieldbackground=[
-               ('disabled', '!focus', 'focus', 'active', 'white')])
-        self.option_add("*Font", "TkFixedFont")
+        self.style = ttk.Style(self)
 
+        sv_ttk.set_theme("light")
+        
         # Let UI know ourself
         UI.gui = self
         # Initialize providers combobox entries
@@ -66,148 +63,147 @@ class Ortho4XP_GUI(tk.Tk):
 
         # Resources
         self.title('Ortho4XP '+O4_Version.version)
-        self.folder_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Folder Searches.gif'))
-        self.earth_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Earth.gif'))
-        self.loupe_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Loupe.gif'))
-        self.config_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Config.gif'))
-        self.stop_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Stop.gif'))
-        self.exit_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Exit.gif'))
+        self.folder_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-file-folder-32.png'))
+        self.earth_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-globe-48.png'))
+        self.loupe_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-zoom-in-48.png'))
+        self.config_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-edit-property-48.png'))
+        self.stop_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-cancel-48.png'))
+        self.exit_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-power-off-button-48.png'))
+        self.help_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-help-16.png'))
 
         # Frame instances and placement
         # Level 0
-        self.frame_top = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_top = ttk.Frame(self)
         self.frame_top.grid(row=0, column=0, sticky=N+S+W+E)
-        self.frame_console = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_console = ttk.Frame(self)
         self.frame_console.grid(row=1, column=0, sticky=N+S+W+E)
         # Level 1
-        self.frame_tile = tk.Frame(
-            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
+        self.frame_tile = ttk.Frame(self.frame_top, padding=5)
         self.frame_tile.grid(row=0, column=0, sticky=N+S+W+E)
-        self.frame_steps = tk.Frame(
-            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
-        self.frame_steps.grid(row=2, column=0, sticky=N+S+W+E)
-        self.frame_bars = tk.Frame(
-            self.frame_top, border=1, padx=5, pady=5, bg="light grey")
-        self.frame_bars.grid(row=3, column=0, sticky=N+S+W+E)
         # Level 2
-        self.frame_folder = tk.Frame(
-            self.frame_tile, border=1, padx=0, pady=0, bg="light grey")
+        self.frame_folder = ttk.Frame(self.frame_tile)
         self.frame_folder.grid(row=1, column=0, columnspan=8, sticky=N+S+W+E)
+        
+        self.frame_steps = ttk.Frame(self.frame_top, padding=5)
+        self.frame_steps.grid(row=2, column=0, sticky=N+S+W+E)
+        
+        self.frame_bars = ttk.Frame(self.frame_top, padding=5)
+        self.frame_bars.grid(row=3, column=0, sticky=EW)
+        self.frame_bars.grid_forget()
+        
+        self.frame_separator = ttk.Frame(self.frame_top, padding=15)
+        self.frame_separator.grid(row=4, column=0, sticky=N+S+W+E)
 
         # Widgets instances and placement
         # First row (Tile data)
         self.lat = tk.StringVar()
         self.lat.trace("w", self.tile_change)
-        tk.Label(self.frame_tile, text='Latitude:', bg="light grey").grid(
-            row=0, column=0, padx=5, pady=5, sticky=E+W)
-        self.lat_entry = tk.Entry(
-            self.frame_tile, width=4, bg="white", fg="black", textvariable=self.lat)
-        self.lat_entry.grid(row=0, column=1, padx=5, pady=5, sticky=W)
+        ttk.Label(self.frame_tile, text='Latitude:').grid(row=0, column=0, padx=(10,2), pady=10, sticky=E+W)
+        self.lat_entry = ttk.Entry(self.frame_tile, width=4, textvariable=self.lat)
+        self.lat_entry.grid(row=0, column=1, padx=(2,10), pady=10, sticky=W)
 
         self.lon = tk.StringVar()
         self.lon.trace("w", self.tile_change)
-        tk.Label(self.frame_tile, anchor=W, text='Longitude:', bg="light grey").grid(
-            row=0, column=2, padx=5, pady=5, sticky=E+W)
-        self.lon_entry = tk.Entry(
-            self.frame_tile, width=4, bg="white", fg="black", textvariable=self.lon)
-        self.lon_entry.grid(row=0, column=3, padx=5, pady=5, sticky=W)
+        ttk.Label(self.frame_tile, text='Longitude:').grid(row=0, column=2, padx=(10,2), pady=10, sticky=E+W)
+        self.lon_entry = ttk.Entry(self.frame_tile, width=4, textvariable=self.lon)
+        self.lon_entry.grid(row=0, column=3, padx=(2,10), pady=10, sticky=W)
 
         self.default_website = tk.StringVar()
         self.default_website.trace("w", self.update_cfg)
-        tk.Label(self.frame_tile, anchor=W, text='Imagery:', bg="light grey").grid(
-            row=0, column=4, padx=5, pady=5, sticky=E+W)
-        self.img_combo = ttk.Combobox(self.frame_tile, values=self.map_list,
-                                      textvariable=self.default_website, state='readonly', width=14, style='O4.TCombobox')
-        self.img_combo.grid(row=0, column=5, padx=5, pady=5, sticky=W)
+        ttk.Label(self.frame_tile, text='Imagery:').grid(row=0, column=4, padx=(10,2), pady=10, sticky=E+W)
+        self.img_combo = ttk.Combobox(self.frame_tile, values=self.map_list, textvariable=self.default_website, state='readonly', width=14)
+        self.img_combo.grid(row=0, column=5, padx=(2,10), pady=10, sticky=W)
 
         self.default_zl = tk.StringVar()
         self.default_zl.trace("w", self.update_cfg)
-        tk.Label(self.frame_tile, anchor=W, text='Zoomlevel:', bg="light grey").grid(
-            row=0, column=6, padx=5, pady=5, sticky=E+W)
-        self.zl_combo = ttk.Combobox(self.frame_tile, values=self.zl_list,
-                                     textvariable=self.default_zl, state='readonly', width=3, style='O4.TCombobox')
-        self.zl_combo.grid(row=0, column=7, padx=5, pady=5, sticky=W)
+        ttk.Label(self.frame_tile, text='Zoomlevel:').grid(row=0, column=6, padx=(10,2), pady=10, sticky=E+W)
+        self.zl_combo = ttk.Combobox(self.frame_tile, values=self.zl_list, textvariable=self.default_zl, state='readonly', width=3)
+        self.zl_combo.grid(row=0, column=7, padx=(2,10), pady=10, sticky=W)
 
         # Second row (Base Folder)
         self.frame_folder.columnconfigure(1, weight=1)
-        tk.Label(self.frame_folder, anchor=W, text='Base Folder:', bg="light grey").grid(
-            row=0, column=0, padx=5, pady=5, sticky=E+W)
+        ttk.Label(self.frame_folder, text='Base Folder:').grid(row=0, column=0, padx=(10,5), pady=10, sticky=E+W)
         self.custom_build_dir = tk.StringVar()
-        self.custom_build_dir_entry = tk.Entry(
-            self.frame_folder, bg="white", fg="black", textvariable=self.custom_build_dir)
-        self.custom_build_dir_entry.grid(
-            row=0, column=1, padx=0, pady=0, sticky=E+W)
-        ttk.Button(self.frame_folder, takefocus=False, image=self.folder_icon, command=self.choose_custom_build_dir,
-                   style='Flat.TButton').grid(row=0, column=2, padx=0, pady=0, sticky=N+S+E+W)
+        self.custom_build_dir_entry = ttk.Entry(self.frame_folder, textvariable=self.custom_build_dir)
+        self.custom_build_dir_entry.grid(row=0, column=1, padx=0, pady=0, sticky=E+W)
+        # include Folder Image Button, tk instead of ttk since else you can't remove the border (=OS native)
+        tk.Button(self.frame_folder, takefocus=False, image=self.folder_icon, command=self.choose_custom_build_dir, borderwidth=0, activebackground='#fafafa').grid(row=0, column=2, padx=(2,10), pady=0, sticky=N+S+E+W)
 
         # Button Icons on top right
-        ttk.Button(self.frame_tile, takefocus=False, image=self.config_icon, command=self.open_config_window,
-                   style='Flat.TButton').grid(row=0, column=9, rowspan=2, padx=5, pady=0)
-        ttk.Button(self.frame_tile, takefocus=False, image=self.loupe_icon, command=self.open_custom_zl_window,
-                   style='Flat.TButton').grid(row=0, column=10, rowspan=2, padx=5, pady=0)
-        ttk.Button(self.frame_tile, takefocus=False, image=self.earth_icon, command=self.open_earth_window,
-                   style='Flat.TButton').grid(row=0, column=11, rowspan=2, padx=5, pady=0)
-        ttk.Button(self.frame_tile, takefocus=False, image=self.stop_icon, command=self.set_red_flag,
-                   style='Flat.TButton').grid(row=0, column=12, rowspan=2, padx=5, pady=0)
-        ttk.Button(self.frame_tile, takefocus=False, image=self.exit_icon, command=self.exit_prg,
-                   style='Flat.TButton').grid(row=0, column=13, rowspan=2, padx=5, pady=0)
+        self.configure_button = ttk.Button(self.frame_tile, takefocus=False, image=self.config_icon, command=self.open_config_window, text="Configure", compound=TOP, width=9, style='Icon.TButton')
+        self.configure_button.grid(row=0, column=9, rowspan=2, padx=(10,2), pady=(10,0))
+        self.zoomlevel_button = ttk.Button(self.frame_tile, takefocus=False, image=self.loupe_icon, command=self.open_custom_zl_window, text="Zoomlevel", compound=TOP, width=9, style='Icon.TButton')
+        self.zoomlevel_button.grid(row=0, column=10, rowspan=2, padx=2, pady=(10,0))
+        self.overview_button = ttk.Button(self.frame_tile, takefocus=False, image=self.earth_icon, command=self.open_earth_window, text="Overview", compound=TOP, width=9, style='Icon.TButton')
+        self.overview_button.grid(row=0, column=11, rowspan=2, padx=2, pady=(10,0))
+        self.interrupt_button = ttk.Button(self.frame_tile, takefocus=False, image=self.stop_icon, command=self.set_red_flag, text="Interrupt", compound=TOP, width=9, style='Icon.TButton')
+        self.interrupt_button.grid(row=0, column=12, rowspan=2, padx=2, pady=(10,0))
+        self.exit_button = ttk.Button(self.frame_tile, takefocus=False, image=self.exit_icon, command=self.exit_prg, text="Exit", compound=TOP, width=9, style='Icon.TButton')
+        self.exit_button.grid(row=0, column=13, rowspan=2, padx=(2,10), pady=(10,0))
+        
+        self.style.configure('Icon.TButton', padding=[2,4])
 
         # Third row (Steps)
         for i in range(5):
             self.frame_steps.columnconfigure(i, weight=1)
-        ttk.Button(self.frame_steps, text="Assemble Vector data", command=self.build_poly_file).grid(
-            row=0, column=0, padx=5, pady=0, sticky=N+S+E+W)
+        ttk.Button(self.frame_steps, text="Assemble Vector data", command=self.build_poly_file, width=20).grid(row=0, column=0, padx=(10,5), pady=0, sticky=N+S+E+W)
         # ,command=self.build_mesh)
-        build_mesh_button = ttk.Button(
-            self.frame_steps, text="Triangulate 3D Mesh")
+        build_mesh_button = ttk.Button(self.frame_steps, text="Triangulate 3D Mesh", width=20)
         build_mesh_button.grid(row=0, column=1, padx=5, pady=0, sticky=N+S+E+W)
         build_mesh_button.bind("<ButtonPress-1>", self.build_mesh)
         build_mesh_button.bind("<Shift-ButtonPress-1>", self.sort_mesh)
         build_mesh_button.bind("<Control-ButtonPress-1>", self.community_mesh)
         # ,command=self.build_masks)
-        build_masks_button = ttk.Button(
-            self.frame_steps, text=" Draw Water Masks  ")
-        build_masks_button.grid(row=0, column=2, padx=5,
-                                pady=0, sticky=N+S+E+W)
+        build_masks_button = ttk.Button(self.frame_steps, text="Draw Water Masks", width=20)
+        build_masks_button.grid(row=0, column=2, padx=5, pady=0, sticky=N+S+E+W)
         build_masks_button.bind("<ButtonPress-1>", self.build_masks)
         build_masks_button.bind("<Shift-ButtonPress-1>", self.build_masks)
-        ttk.Button(self.frame_steps, text=" Build Imagery/DSF ",
-                   command=self.build_tile).grid(row=0, column=3, padx=5, pady=0, sticky=N+S+E+W)
-        ttk.Button(self.frame_steps, text="    All in one     ", command=self.build_all).grid(
-            row=0, column=4, padx=5, pady=0, sticky=N+S+E+W)
+        ttk.Button(self.frame_steps, text="Build Imagery/DSF", command=self.build_tile, width=20).grid(row=0, column=3, padx=5, pady=0, sticky=N+S+E+W)
+        ttk.Button(self.frame_steps, text="All in one", command=self.build_all, width=20).grid(row=0, column=4, padx=(5,10), pady=0, sticky=N+S+E+W)
 
         # Fourth row (Progress bars and controls)
-        #Label(self.frame_left,anchor=W,text="DSF/Masks progress",bg="light grey")
+        #Label(self.frame_left,anchor=W,text="DSF/Masks progress")
+        self.pgrb1v_label = tk.StringVar()
+        self.pgrb2v_label = tk.StringVar()
+        self.pgrb3v_label = tk.StringVar()
+        
+        self.pgrb1v_label.set("")
+        self.pgrb2v_label.set("")
+        self.pgrb3v_label.set("")
+        self.pgrbv_label = {1: self.pgrb1v_label, 2: self.pgrb2v_label, 3: self.pgrb3v_label}
+        
         self.pgrb1v = tk.IntVar()
         self.pgrb2v = tk.IntVar()
         self.pgrb3v = tk.IntVar()
         self.pgrbv = {1: self.pgrb1v, 2: self.pgrb2v, 3: self.pgrb3v}
-        self.pgrb1 = ttk.Progressbar(
-            self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb1v)
-        self.pgrb1.grid(row=0, column=0, padx=5, pady=0)
-        self.pgrb2 = ttk.Progressbar(
-            self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb2v)
-        self.pgrb2.grid(row=0, column=1, padx=5, pady=0)
-        self.pgrb3 = ttk.Progressbar(
-            self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb3v)
-        self.pgrb3.grid(row=0, column=2, padx=5, pady=0)
+        
+        for i in range(2):
+            self.frame_bars.columnconfigure(i, weight=1)
+            
+        self.pgrb1_label = ttk.Label(self.frame_bars, textvariable=self.pgrb1v_label, width=40)
+        self.pgrb1_label.grid(row=0, column=0, padx=(10,5), pady=10, sticky='W')
+        self.pgrb1 = ttk.Progressbar( self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb1v, value=0, length=700)
+        self.pgrb1.grid(row=0, column=1,  padx=(0,10), pady=(15,10), sticky='W')
+        self.pgrb2_label = ttk.Label(self.frame_bars, textvariable=self.pgrb2v_label, width=40)
+        self.pgrb2_label.grid(row=1, column=0, padx=(10,5), pady=10, sticky='W')
+        self.pgrb2 = ttk.Progressbar( self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb2v, value=0, length=700)
+        self.pgrb2.grid(row=1, column=1,  padx=(0,10), pady=(15,10), sticky='W')
+        self.pgrb3_label = ttk.Label(self.frame_bars, textvariable=self.pgrb3v_label, width=40)
+        self.pgrb3_label.grid(row=2, column=0, padx=(10,5), pady=10, sticky='W')
+        self.pgrb3 = ttk.Progressbar( self.frame_bars, mode='determinate', orient=HORIZONTAL, variable=self.pgrb3v, value=0, length=700)
+        self.pgrb3.grid(row=2, column=1,  padx=(0,10), pady=(15,10), sticky='W')
 
+        
+        self.separator = ttk.Separator(self.frame_separator)
+        self.separator.pack(side=LEFT, fill=BOTH, expand=1)
+        
         # Console
-        self.console = tk.Text(self.frame_console, bd=0)
+        self.console = tk.Text(self.frame_console, bd=0, font=("Courier", 9), padx=15, pady=5, state=DISABLED)
         self.console.pack(side=LEFT, fill=BOTH, expand=1)
-        self.scrollbar = ttk.Scrollbar(
-            self.frame_console, orient=VERTICAL, command=self.console.yview)
+        self.scrollbar = ttk.Scrollbar(self.frame_console, orient=VERTICAL, command=self.console.yview)
         self.scrollbar.pack(side=RIGHT, fill=Y)
         self.console.configure(yscrollcommand=self.scrollbar.set)
-        self.frame_inside = Frame(self.console)
+
         self.frame_console.rowconfigure(0, weight=1)
         self.frame_console.columnconfigure(0, weight=1)
 
@@ -223,8 +219,7 @@ class Ortho4XP_GUI(tk.Tk):
 
         # reinitialization from last visit
         try:
-            f = open(os.path.join(FNAMES.Ortho4XP_dir,
-                     ".last_gui_params.txt"), 'r')
+            f = open(os.path.join(FNAMES.Ortho4XP_dir,".last_gui_params.txt"), 'r')
             (lat, lon, default_website, default_zl) = f.readline().split()
             custom_build_dir = f.readline().strip()
             self.lat.set(lat)
@@ -248,6 +243,7 @@ class Ortho4XP_GUI(tk.Tk):
         return
 
     def console_update(self):
+        self.console['state'] = NORMAL #enable writing in the text box
         try:
             while 1:
                 line = self.console_queue.get_nowait()
@@ -260,6 +256,7 @@ class Ortho4XP_GUI(tk.Tk):
         except queue.Empty:
             pass
         self.callback_console = self.after(100, self.console_update)
+        self.console['state'] = DISABLED #prevent writing in the text box
 
     def pgrb_update(self):
         try:
@@ -459,8 +456,8 @@ class Ortho4XP_GUI(tk.Tk):
 ##############################################################################
 class Ortho4XP_Custom_ZL(tk.Toplevel):
 
-    dico_color = {15: 'cyan', 16: 'green',
-                  17: 'yellow', 18: 'orange', 19: 'red'}
+    dico_color = {15: 'steelblue', 16: 'forest green', 17: 'gold', 18: 'dark orange', 19: 'red'} #better choice of colors
+
     zl_list = ['10', '11', '12', '13']
     points = []
     coords = []
@@ -471,16 +468,15 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         self.parent = parent
         self.lat = lat
         self.lon = lon
-        self.map_list = sorted([provider_code for provider_code in set(
-            IMG.providers_dict) if IMG.providers_dict[provider_code]['in_GUI']]+sorted(set(IMG.combined_providers_dict)))
-        self.map_list = [
-            provider_code for provider_code in self.map_list if provider_code != 'SEA']
-        self.reduced_map_list = [
-            provider_code for provider_code in self.map_list if provider_code != 'OSM']
+        self.map_list = sorted([provider_code for provider_code in set(IMG.providers_dict) if IMG.providers_dict[provider_code]['in_GUI']]+sorted(set(IMG.combined_providers_dict)))
+        self.map_list = [provider_code for provider_code in self.map_list if provider_code != 'SEA']
+        self.reduced_map_list = [provider_code for provider_code in self.map_list if provider_code != 'OSM']
         self.points = []
         self.coords = []
         self.polygon_list = []
         self.polyobj_list = []
+        self.exit_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-power-off-button-48.png'))
+        self.style = ttk.Style(self.parent)
 
         tk.Toplevel.__init__(self)
         self.title('Preview / Custom zoomlevels')
@@ -492,7 +488,7 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         self.map_choice = tk.StringVar()
         self.map_choice.set('OSM')
         self.zl_choice = tk.StringVar()
-        self.zl_choice.set('11')
+        self.zl_choice.set('10') # Lowering zoomlevel to 10 to get more overview
         self.progress_preview = tk.IntVar()
         self.progress_preview.set(0)
         self.zmap_choice = tk.StringVar()
@@ -508,119 +504,124 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         self.gb.set('0Gb')
 
         # Frames
-        self.frame_left = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_left = ttk.Frame(self)
         self.frame_left.grid(row=0, column=0, sticky=N+S+W+E)
 
-        self.frame_right = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_right = ttk.Frame(self)
         self.frame_right.grid(row=0, column=1, sticky=N+S+W+E)
         self.frame_right.rowconfigure(0, weight=1)
         self.frame_right.columnconfigure(0, weight=1)
 
         # Widgets
         row = 0
-        tk.Label(self.frame_left, anchor=W, text="Preview params ", fg="black",
-                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
+        self.labelwidget = ttk.Label(self, text="Preview parameters", font=12)
+        self.labelframe_left_top = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_top.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
+        self.labelframe_left_top.columnconfigure(1, weight=1)
         row += 1
 
-        tk.Label(self.frame_left, anchor=W, text="Source : ", bg="light grey").grid(
-            row=row, column=0, padx=5, pady=3, sticky=W)
-        self.map_combo = ttk.Combobox(self.frame_left, textvariable=self.map_choice,
-                                      values=self.map_list, width=10, state='readonly', style='O4.TCombobox')
-        self.map_combo.grid(row=row, column=0, padx=5, pady=3, sticky=E)
+        ttk.Label(self.labelframe_left_top, text="Source:").grid(row=row, column=0, padx=10, pady=(10,5), sticky=N+S+W)
+        self.map_combo = ttk.Combobox(self.labelframe_left_top, textvariable=self.map_choice,
+                                      values=self.map_list, state='readonly', width=10)
+        self.map_combo.grid(row=row, column=1, padx=10, pady=(10,5), sticky=N+S+E)
         row += 1
 
-        tk.Label(self.frame_left, anchor=W, text="Zoomlevel : ", bg="light grey").grid(
-            row=row, column=0, padx=5, pady=3, sticky=W)
-        self.zl_combo = ttk.Combobox(self.frame_left, textvariable=self.zl_choice,
-                                     values=self.zl_list, width=3, state='readonly', style='O4.TCombobox')
-        self.zl_combo.grid(row=2, column=0, padx=5, pady=3, sticky=E)
+        ttk.Label(self.labelframe_left_top, text="Zoomlevel:").grid(row=row, column=0, padx=10, pady=5, sticky=N+S+W)
+        self.zl_combo = ttk.Combobox(self.labelframe_left_top, textvariable=self.zl_choice,
+                                     values=self.zl_list, state='readonly', width=10)
+        self.zl_combo.grid(row=row, column=1, padx=10, pady=5, sticky=N+S+E)
         row += 1
 
-        ttk.Button(self.frame_left, text='Preview', command=lambda: self.preview_tile(
-            lat, lon)).grid(row=row, padx=5, column=0, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_top, text='Preview', command=lambda: self.preview_tile(
+            lat, lon)).grid(row=row, padx=10, pady=(5,10), column=0, columnspan=2, sticky=N+S+E+W)
         row += 1
-        tk.Label(self.frame_left, anchor=W, text="Zone params ", fg="black", bg="dark grey",
-                 font="Helvetica 16 bold").grid(row=row, column=0, pady=10, sticky=W+E)
+        
+        self.labelwidget = ttk.Label(self, text="Zone parameters", font=12)
+        self.labelframe_left_middle = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_middle.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
+        self.labelframe_left_middle.columnconfigure(1, weight=1)
+        row += 1
+        
+        ttk.Label(self.labelframe_left_middle, text="Source:").grid(row=row, column=0, sticky=N+S+W, padx=10, pady=(10,5))
+        self.zmap_combo = ttk.Combobox(self.labelframe_left_middle, textvariable=self.zmap_choice,
+                                       values=self.reduced_map_list, state='readonly', width=10)
+        self.zmap_combo.grid(row=row, column=1, padx=10, pady=(10,5), sticky=N+S+E)
         row += 1
 
-        tk.Label(self.frame_left, anchor=W, text="Source : ", bg="light grey").grid(
-            row=row, column=0, sticky=W, padx=5, pady=10)
-        self.zmap_combo = ttk.Combobox(self.frame_left, textvariable=self.zmap_choice,
-                                       values=self.reduced_map_list, width=8, state='readonly', style='O4.TCombobox')
-        self.zmap_combo.grid(row=row, column=0, padx=5, pady=10, sticky=E)
+        ttk.Label(self.labelframe_left_middle, text="Select a zoomlevel:").grid(row=row, column=0, padx=10, pady=5, sticky=N+S+W, columnspan=2)
         row += 1
-
-        self.frame_zlbtn = tk.Frame(
-            self.frame_left, border=1, bg='light grey')
+        self.frame_zlbtn = ttk.Frame(self.labelframe_left_middle)
         for i in range(5):
             self.frame_zlbtn.columnconfigure(i, weight=1)
-        self.frame_zlbtn.grid(row=row, column=0, columnspan=1, sticky=N+S+W+E)
+        self.frame_zlbtn.grid(row=row, column=0, columnspan=2, sticky=N+S+W+E, padx=5, pady=(5,10))
         row += 1
         for zl in range(15, 20):
             col = zl-15
-            tk.Radiobutton(self.frame_zlbtn, bd=2, bg=self.dico_color[zl],
-                           activebackground=self.dico_color[zl], selectcolor=self.dico_color[zl],
-                           height=2, indicatoron=0, text='ZL'+str(zl), variable=self.zlpol, value=zl,
-                           command=self.redraw_poly).grid(row=0, column=col, padx=0, pady=0, sticky=N+S+E+W)
-
-        tk.Label(self.frame_left, anchor=W, text="Approx. Add. Size : ",
-                 bg="light grey").grid(row=row, column=0, padx=5, pady=10, sticky=W)
-        tk.Entry(self.frame_left, width=7, justify=RIGHT, bg="white", fg="black",
-                 textvariable=self.gb).grid(row=row, column=0, padx=5, pady=10, sticky=E)
+            self.rad_button = ttk.Radiobutton(self.frame_zlbtn, text=str(zl), value=zl, style = str(zl)+'.TRadiobutton', variable=self.zlpol, command=self.redraw_poly)
+            self.rad_button.grid(padx=2, pady=0, row=0, column=col)
+            self.style_name = self.rad_button.winfo_class()
+            self.style_name = str(zl)+'.'+ self.style_name
+            self.style.configure(self.style_name, background=self.dico_color[zl], padding=[0,0,8,0])
+            
+        ttk.Label(self.labelframe_left_middle, text="Additional Required Disk Space:").grid(row=row, column=0, padx=5, pady=(10, 0), sticky=N+S+W, columnspan=2)
+        row += 1
+        ttk.Entry(self.labelframe_left_middle, width=10, justify=RIGHT,
+                 textvariable=self.gb).grid(row=row, column=1, padx=10, pady=5, sticky=N+S+E)
         row += 1
 
-        ttk.Button(self.frame_left, text='  Save zone  ', command=self.save_zone_cmd).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Save zone', command=self.save_zone_cmd, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='Delete ZL zone', command=self.delete_zone_cmd).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Delete ZL zone', command=self.delete_zone_cmd, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='Make GeoTiffs', command=self.build_geotiffs_ifc).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Make GeoTiffs', command=self.build_geotiffs_ifc, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='Extract Mesh ', command=self.extract_mesh_ifc).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Extract Mesh', command=self.extract_mesh_ifc, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        tk.Label(self.frame_left, text="Ctrl+B1 : add texture\nShift+B1: add zone point\nCtrl+B2 : delete zone",
-                 bg="light grey", justify=LEFT).grid(row=row, column=0, padx=5, pady=20, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Apply', command=self.save_zone_list, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='    Apply    ', command=self.save_zone_list).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Reset', command=self.delAll, width=25).grid(
+            row=row, column=0, padx=10, pady=5, sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='    Reset    ', command=self.delAll).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Exit', command=self.destroy, width=25).grid(
+            row=row, column=0, padx=10, pady=(5,10), sticky=N+S+E+W, columnspan=2)
         row += 1
-        ttk.Button(self.frame_left, text='    Exit     ', command=self.destroy).grid(
-            row=row, column=0, padx=5, pady=3, sticky=N+S+E+W)
+        
+        self.labelwidget = ttk.Label(self, text="Shortcuts", font=12)
+        self.labelframe_left_bottom = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_bottom.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
         row += 1
-        self.canvas = tk.Canvas(self.frame_right, bd=0, height=750, width=750)
+        ttk.Label(self.labelframe_left_bottom, text="Ctrl+B1: add texture\nShift+B1: add zone point\nCtrl+B2: delete zone",
+            justify=LEFT).grid(row=row, column=0, padx=10, pady=10, sticky=N+S+E+W, columnspan=2)
+        row += 1
+
+        self.canvas = tk.Canvas(self.frame_right, bd=0, height=768, width=1024, highlightthickness=0) #make the canvas size width same as zoomlevel 10 width
         self.canvas.grid(row=0, column=0, sticky=N+S+E+W)
+        
+        #start with a default preview canvas
+        self.preview_tile(lat,lon)
 
     def preview_tile(self, lat, lon):
         self.zoomlevel = int(self.zl_combo.get())
         zoomlevel = self.zoomlevel
         provider_code = self.map_combo.get()
         (tilxleft, tilytop) = GEO.wgs84_to_gtile(lat+1, lon, zoomlevel)
-        (self.latmax, self.lonmin) = GEO.gtile_to_wgs84(
-            tilxleft, tilytop, zoomlevel)
-        (self.xmin, self.ymin) = GEO.wgs84_to_pix(
-            self.latmax, self.lonmin, zoomlevel)
+        (self.latmax, self.lonmin) = GEO.gtile_to_wgs84(tilxleft, tilytop, zoomlevel)
+        (self.xmin, self.ymin) = GEO.wgs84_to_pix(self.latmax, self.lonmin, zoomlevel)
         (tilxright, tilybot) = GEO.wgs84_to_gtile(lat, lon+1, zoomlevel)
-        (self.latmin, self.lonmax) = GEO.gtile_to_wgs84(
-            tilxright+1, tilybot+1, zoomlevel)
-        (self.xmax, self.ymax) = GEO.wgs84_to_pix(
-            self.latmin, self.lonmax, zoomlevel)
+        (self.latmin, self.lonmax) = GEO.gtile_to_wgs84(tilxright+1, tilybot+1, zoomlevel)
+        (self.xmax, self.ymax) = GEO.wgs84_to_pix(self.latmin, self.lonmax, zoomlevel)
         filepreview = FNAMES.preview(lat, lon, zoomlevel, provider_code)
         if os.path.isfile(filepreview) != True:
             fargs_ctp = [lat, lon, zoomlevel, provider_code]
-            self.ctp_thread = threading.Thread(
-                target=IMG.create_tile_preview, args=fargs_ctp)
+            self.ctp_thread = threading.Thread(target=IMG.create_tile_preview, args=fargs_ctp)
             self.ctp_thread.start()
             fargs_dispp = [filepreview, lat, lon]
-            dispp_thread = threading.Thread(
-                target=self.show_tile_preview, args=fargs_dispp)
+            dispp_thread = threading.Thread(target=self.show_tile_preview, args=fargs_dispp)
             dispp_thread.start()
         else:
             self.show_tile_preview(filepreview, lat, lon)
@@ -648,8 +649,7 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         self.photo = ImageTk.PhotoImage(self.image)
         self.map_x_res = self.photo.width()
         self.map_y_res = self.photo.height()
-        self.img_map = self.canvas.create_image(
-            0, 0, anchor=NW, image=self.photo)
+        self.img_map = self.canvas.create_image(0, 0, anchor=NW, image=self.photo)
         self.canvas.config(scrollregion=self.canvas.bbox(ALL))
         if 'dar' in sys.platform:
             self.canvas.bind("<ButtonPress-2>", self.scroll_start)
@@ -708,11 +708,9 @@ class Ortho4XP_Custom_ZL(tk.Toplevel):
         try:
             color = self.dico_color[self.zlpol.get()]
             if len(self.points) >= 4:
-                self.poly_curr = self.canvas.create_polygon(self.points,
-                                                            outline=color, fill='', width=2)
+                self.poly_curr = self.canvas.create_polygon(self.points, outline=color, stipple = 'gray25', fill=color, width=2)
             else:
-                self.poly_curr = self.canvas.create_polygon(self.points,
-                                                            outline=color, fill='', width=5)
+                self.poly_curr = self.canvas.create_polygon(self.points, outline=color, stipple = 'gray25', fill=color, width=5)
         except:
             pass
         return
@@ -928,7 +926,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
         tk.Toplevel.__init__(self)
         self.title('Tiles collection and management')
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
         # Parent derived data
         self.parent = parent
@@ -941,66 +939,62 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
         for item in self.list_del_ckbtn+self.list_do_ckbtn:
             self.v_[item] = tk.IntVar()
         self.latlon = tk.StringVar()
-
+        
         # Frames
-        self.frame_left = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_left = ttk.Frame(self)
         self.frame_left.grid(row=0, column=0, sticky=N+S+W+E)
-        self.frame_right = tk.Frame(
-            self, border=1, relief=FLAT, bg='light grey')
+        self.frame_right = ttk.Frame(self)
         self.frame_right.grid(row=0, rowspan=60, column=1, sticky=N+S+W+E)
         self.frame_right.rowconfigure(0, weight=1, minsize=self.canvas_min_y)
-        self.frame_right.columnconfigure(
-            0, weight=1, minsize=self.canvas_min_x)
+        self.frame_right.columnconfigure(0, weight=1, minsize=self.canvas_min_x)
 
         # Widgets
         row = 0
-        tk.Label(self.frame_left, anchor=W, text="Active tile", fg="black",
-                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
+        self.labelwidget = ttk.Label(self, text="Active tile", font=12)
+        self.labelframe_left_top = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_top.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
+        self.latlon_entry = ttk.Entry(self.labelframe_left_top, width=8, textvariable=self.latlon)
+        self.latlon_entry.grid(row=row, column=0, padx=10, pady=10, sticky=N+S+E+W)
         row += 1
-        self.latlon_entry = tk.Entry(
-            self.frame_left, width=8, bg="white", fg="black", textvariable=self.latlon)
-        self.latlon_entry.grid(row=row, column=0, padx=5, pady=5, sticky=N+S)
-        row += 1
-        # Trash
-        tk.Label(self.frame_left, anchor=W, text="Erase cached data", fg="black",
-                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
-        row += 1
+        
+        # Trash1
+        self.labelwidget = ttk.Label(self, text="Erase cached data", font=12)
+        self.labelframe_left_middle = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_middle.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
         for item in self.list_del_ckbtn:
-            tk.Checkbutton(self.frame_left, text=item, anchor=W, variable=self.v_[
-                           item], bg="light grey", activebackground="light grey", highlightthickness=0).grid(row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+            ttk.Checkbutton(self.labelframe_left_middle, text=item, variable=self.v_[item]).grid(row=row, column=0, padx=10, pady=(10,0), sticky=N+S+E+W)
             row += 1
-        ttk.Button(self.frame_left, text='  Delete    ', command=self.trash).grid(
-            row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_middle, text='Delete', command=self.trash, width=25).grid(row=row, column=0, padx=10, pady=10, sticky=N+S+E+W)
         row += 1
+        
         # Batch build
-        tk.Label(self.frame_left, anchor=W, text="Batch build tiles", fg="black",
-                 bg="dark grey", font="Helvetica 16 bold").grid(row=row, column=0, sticky=W+E)
-        row += 1
+        self.labelwidget = ttk.Label(self, text="Batch build tiles", font=12)
+        self.labelframe_left_bottom = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_bottom.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
         for item in self.list_do_ckbtn:
-            tk.Checkbutton(self.frame_left, text=item, anchor=W, variable=self.v_[
-                           item], bg="light grey", activebackground="light grey", highlightthickness=0).grid(row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+            ttk.Checkbutton(self.labelframe_left_bottom, text=item, variable=self.v_[item]).grid(row=row, column=0, padx=10, pady=(10,5), sticky=N+S+E+W)
             row += 1
-        ttk.Button(self.frame_left, text='  Batch Build   ', command=self.batch_build).grid(
-            row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_bottom, text='Batch Build', command=self.batch_build, width=25).grid(row=row, column=0, padx=10, pady=(10,5), sticky=N+S+E+W)
         row += 1
+        
         # Refresh window
-        ttk.Button(self.frame_left, text='    Refresh     ', command=self.refresh).grid(
-            row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_bottom, text='Refresh', command=self.refresh, width=25).grid(row=row, column=0, padx=10, pady=5, sticky=N+S+E+W)
         row += 1
         # Exit
-        ttk.Button(self.frame_left, text='      Exit      ', command=self.exit).grid(
-            row=row, column=0, padx=5, pady=5, sticky=N+S+E+W)
+        ttk.Button(self.labelframe_left_bottom, text='Exit', command=self.exit, width=25).grid(row=row, column=0, padx=10, pady=(5,10), sticky=N+S+E+W)
         row += 1
-        tk.Label(self.frame_left, text="Shortcuts :\n-----------------\nB2-press+hold=move map\nB1-double-click=select active\nShift+B1=add to batch build\nCtrl+B1=link in Custom Scenery",
-                 bg="light grey").grid(row=row, column=0, padx=0, pady=5, sticky=N+S+E+W)
+        
+        self.labelwidget = ttk.Label(self, text="Shortcuts", font=12)
+        self.labelframe_left_footnote = ttk.Labelframe(self.frame_left, labelwidget=self.labelwidget)
+        self.labelframe_left_footnote.grid(row=row, column=0, sticky=W+E, padx=10, pady=10)
+        ttk.Label(self.labelframe_left_footnote, text="B2-press+hold: move map\nB1-double-click: select active\nShift+B1: add to batch build\nCtrl+B1: link in Custom Scenery").grid(
+            row=row, column=0, padx=10, pady=10, sticky=N+S+E+W)
         row += 1
-
-        self.canvas = tk.Canvas(self.frame_right, bd=0)
+        
+        self.canvas = tk.Canvas(self.frame_right, bd=0, height=768, width=1024, highlightthickness=0)
         self.canvas.grid(row=0, column=0, sticky=N+S+E+W)
 
-        self.canvas.config(scrollregion=(
-            1, 1, 2**self.earthzl*256-1, 2**self.earthzl*256-1))  # self.canvas.bbox(ALL))
+        self.canvas.config(scrollregion=(1, 1, 2**self.earthzl*256-1, 2**self.earthzl*256-1))  # self.canvas.bbox(ALL))
         (x0, y0) = GEO.wgs84_to_pix(lat+0.5, lon+0.5, self.earthzl)
         x0 = max(1, x0-self.canvas_min_x/2)
         y0 = max(1, y0-self.canvas_min_y/2)
@@ -1022,12 +1016,9 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
         self.active_lat = lat
         self.active_lon = lon
         self.latlon.set(FNAMES.short_latlon(self.active_lat, self.active_lon))
-        [x0, y0] = GEO.wgs84_to_pix(
-            self.active_lat+1, self.active_lon, self.earthzl)
-        [x1, y1] = GEO.wgs84_to_pix(
-            self.active_lat, self.active_lon+1, self.earthzl)
-        self.active_tile = self.canvas.create_rectangle(
-            x0, y0, x1, y1, fill='', outline='yellow', width=3)
+        [x0, y0] = GEO.wgs84_to_pix(self.active_lat+1, self.active_lon, self.earthzl)
+        [x1, y1] = GEO.wgs84_to_pix(self.active_lat, self.active_lon+1, self.earthzl)
+        self.active_tile = self.canvas.create_rectangle(x0, y0, x1, y1, fill='', outline='gold', width=3)
         self.threaded_preview()
         return
 
@@ -1045,8 +1036,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
         threading.Thread(target=self.preview_existing_tiles).start()
 
     def preview_existing_tiles(self):
-        dico_color = {11: 'black', 12: 'black', 13: 'black', 14: 'black',
-                      15: 'cyan', 16: 'green', 17: 'yellow', 18: 'orange', 19: 'red'}
+        dico_color = {11: 'black', 12: 'black', 13: 'black', 14: 'black', 15: 'steelblue', 16: 'forest green', 17: 'gold', 18: 'dark orange', 19: 'red'}
         if self.dico_tiles_done:
             for tile in self.dico_tiles_done:
                 for objid in self.dico_tiles_done[tile][:2]:
@@ -1098,10 +1088,8 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                         else:
                             content = '?'
                         self.dico_tiles_done[(lat, lon)] = (
-                            self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, stipple='gray12') if not OsX else self.canvas.create_rectangle(
-                                x0, y0, x1, y1, outline='black'),
-                            self.canvas.create_text(
-                                (x0+x1)//2, (y0+y1)//2, justify=CENTER, text=content, fill='black', font=('Helvetica', '12', 'normal')),
+                            self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, stipple='gray25') if not OsX else self.canvas.create_rectangle(x0, y0, x1, y1, outline='black'),
+                            self.canvas.create_text((x0+x1)//2, (y0+y1)//2, justify=CENTER, text=content, fill='gray50', font=10),
                             dir_name
                         )
                         link = os.path.join(
@@ -1112,8 +1100,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                                     self.canvas.itemconfig(
                                         self.dico_tiles_done[(lat, lon)][0], stipple='gray50')
                                 else:
-                                    self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=(
-                                        'Helvetica', '12', 'bold underline'))
+                                    self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=12)
         elif self.grouped and os.path.isdir(os.path.join(self.working_dir, 'Earth nav data')):
             for dir_name in os.listdir(os.path.join(self.working_dir, 'Earth nav data')):
                 for file_name in os.listdir(os.path.join(self.working_dir, 'Earth nav data', dir_name)):
@@ -1151,10 +1138,8 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                     else:
                         content = '?'
                     self.dico_tiles_done[(lat, lon)] = (
-                        self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, stipple='gray12') if not OsX else self.canvas.create_rectangle(
-                            x0, y0, x1, y1, outline='black'),
-                        self.canvas.create_text((x0+x1)//2, (y0+y1)//2, justify=CENTER,
-                                                text=content, fill='black', font=('Helvetica', '12', 'normal')),
+                        self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, stipple='gray25') if not OsX else self.canvas.create_rectangle(x0, y0, x1, y1, outline='black'),
+                        self.canvas.create_text((x0+x1)//2, (y0+y1)//2, justify=CENTER, text=content, fill='black', font=('12', 'normal')),
                         dir_name
                     )
             link = os.path.join(CFG.custom_scenery_dir,
@@ -1166,14 +1151,12 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                             self.canvas.itemconfig(
                                 self.dico_tiles_done[(lat, lon)][0], stipple='gray50')
                         else:
-                            self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=(
-                                'Helvetica', '12', 'bold underline'))
+                            self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=('12', 'bold underline'))
         for (lat, lon) in self.dico_tiles_todo:
             [x0, y0] = GEO.wgs84_to_pix(lat+1, lon, self.earthzl)
             [x1, y1] = GEO.wgs84_to_pix(lat, lon+1, self.earthzl)
             self.canvas.delete(self.dico_tiles_todo[(lat, lon)])
-            self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(
-                x0, y0, x1, y1, fill='red', stipple='gray12') if not OsX else self.canvas.create_rectangle(x0, y0, x1, y1, outline='red', width=2)
+            self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(x0, y0, x1, y1, fill='gold', stipple='gray25') if not OsX else self.canvas.create_rectangle(x0, y0, x1, y1, outline='gold', width=2)
         return
 
     def trash(self):
@@ -1184,14 +1167,12 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                 UI.vprint(3, e)
         if self.v_['Mask data'].get():
             try:
-                shutil.rmtree(FNAMES.mask_dir(
-                    self.active_lat, self.active_lon))
+                shutil.rmtree(FNAMES.mask_dir(self.active_lat, self.active_lon))
             except Exception as e:
                 UI.vprint(3, e)
         if self.v_['Jpeg imagery'].get():
             try:
-                shutil.rmtree(os.path.join(FNAMES.Imagery_dir, FNAMES.long_latlon(
-                    self.active_lat, self.active_lon)))
+                shutil.rmtree(os.path.join(FNAMES.Imagery_dir, FNAMES.long_latlon(self.active_lat, self.active_lon)))
             except Exception as e:
                 UI.vprint(3, e)
         if self.v_['Tile (whole)'].get() and not self.grouped:
@@ -1206,8 +1187,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                 del(self.dico_tiles_done[(self.active_lat, self.active_lon)])
         if self.v_['Tile (textures)'].get() and not self.grouped:
             try:
-                shutil.rmtree(os.path.join(FNAMES.build_dir(
-                    self.active_lat, self.active_lon, self.custom_build_dir), 'textures'))
+                shutil.rmtree(os.path.join(FNAMES.build_dir(self.active_lat, self.active_lon, self.custom_build_dir), 'textures'))
             except Exception as e:
                 UI.vprint(3, e)
         return
@@ -1225,8 +1205,7 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
             pass
         [x0, y0] = GEO.wgs84_to_pix(lat+1, lon, self.earthzl)
         [x1, y1] = GEO.wgs84_to_pix(lat, lon+1, self.earthzl)
-        self.active_tile = self.canvas.create_rectangle(
-            x0, y0, x1, y1, fill='', outline='yellow', width=3)
+        self.active_tile = self.canvas.create_rectangle(x0, y0, x1, y1, fill='', outline='gold', width=3)
         self.parent.lat.set(lat)
         self.parent.lon.set(lon)
         return
@@ -1247,10 +1226,9 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                 os.remove(link)
                 if not OsX:
                     self.canvas.itemconfig(
-                        self.dico_tiles_done[(lat, lon)][0], stipple='gray12')
+                        self.dico_tiles_done[(lat, lon)][0], stipple='gray25')
                 else:
-                    self.canvas.itemconfig(self.dico_tiles_done[(
-                        lat, lon)][1], font=('Helvetica', '12', 'normal'))
+                    self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=('12', 'normal'))
                 return
         elif self.grouped:
             link = os.path.join(CFG.custom_scenery_dir,
@@ -1261,10 +1239,10 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                 for (lat0, lon0) in self.dico_tiles_done:
                     if not OsX:
                         self.canvas.itemconfig(
-                            self.dico_tiles_done[(lat, lon)][0], stipple='gray12')
+                            self.dico_tiles_done[(lat, lon)][0], stipple='gray25')
                     else:
                         self.canvas.itemconfig(self.dico_tiles_done[(
-                            lat, lon)][1], font=('Helvetica', '12', 'normal'))
+                            lat, lon)][1], font=('12', 'normal'))
                 return
         # in case this was a broken link
         try:
@@ -1280,16 +1258,14 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
                 self.canvas.itemconfig(
                     self.dico_tiles_done[(lat, lon)][0], stipple='gray50')
             else:
-                self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=(
-                    'Helvetica', '12', 'bold underline'))
+                self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=('12', 'bold underline'))
         else:
             for (lat0, lon0) in self.dico_tiles_done:
                 if not OsX:
                     self.canvas.itemconfig(
                         self.dico_tiles_done[(lat0, lon0)][0], stipple='gray50')
                 else:
-                    self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=(
-                        'Helvetica', '12', 'bold underline'))
+                    self.canvas.itemconfig(self.dico_tiles_done[(lat, lon)][1], font=('12', 'bold underline'))
         return
 
     def add_tile(self, event):
@@ -1300,11 +1276,9 @@ class Ortho4XP_Earth_Preview(tk.Toplevel):
             [x0, y0] = GEO.wgs84_to_pix(lat+1, lon, self.earthzl)
             [x1, y1] = GEO.wgs84_to_pix(lat, lon+1, self.earthzl)
             if not OsX:
-                self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(
-                    x0, y0, x1, y1, fill='red', stipple='gray12')
+                self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(x0, y0, x1, y1, fill='gold', stipple='gray25')
             else:
-                self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(
-                    x0+2, y0+2, x1-2, y1-2, outline='red', width=1)
+                self.dico_tiles_todo[(lat, lon)] = self.canvas.create_rectangle(x0+2, y0+2, x1-2, y1-2, outline='gold', width=1)
         else:
             self.canvas.delete(self.dico_tiles_todo[(lat, lon)])
             self.dico_tiles_todo.pop((lat, lon), None)

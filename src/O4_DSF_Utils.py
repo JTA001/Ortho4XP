@@ -397,7 +397,7 @@ def build_dsf(tile, download_queue):
     for tri in [tri for tri in tri_list if tri[3] == 2]:
         (n1, n2, n3, tri_type) = tri
         if i % step == 0:
-            UI.progress_bar(1, int(i/step*0.9))
+            UI.progress_bar(1, int(i/step*0.9), "DSF First sea Water Tris:")
             if UI.red_flag:
                 UI.vprint(1, "DSF construction interrupted.")
                 return 0
@@ -596,7 +596,7 @@ def build_dsf(tile, download_queue):
     for tri in [tri for tri in tri_list if tri[3] < 2]:
         (n1, n2, n3, tri_type) = tri
         if i % step == 0:
-            UI.progress_bar(1, int(i/step*0.9))
+            UI.progress_bar(1, int(i/step*0.9),"DSF Second land and inland water tris:")
             if UI.red_flag:
                 UI.vprint(1, "DSF construction interrupted.")
                 return 0
@@ -796,7 +796,7 @@ def build_dsf(tile, download_queue):
         for l in range(2*dsf_pool_plane[k]):
             f.write(struct.pack('<f', pool_param[k % pool_nbr][l]))
 
-    UI.progress_bar(1, 95)
+    UI.progress_bar(1, 95, "Geodata DSF")
     if UI.red_flag:
         UI.vprint(1, "DSF construction interrupted.")
         return 0
@@ -916,7 +916,7 @@ def build_dsf(tile, download_queue):
                         f.write(struct.pack(
                             '<H', textured_tris[terrain_idx][idx_dsfpool][510*blocks+2*k+1]))
 
-    UI.progress_bar(1, 98)
+    UI.progress_bar(1, 98, "Geodata DSF")
     if UI.red_flag:
         UI.vprint(1, "DSF construction interrupted.")
         return 0
@@ -931,7 +931,7 @@ def build_dsf(tile, download_queue):
     f = open(dsf_file_name+'.tmp', 'ab')
     f.write(md5sum)
     f.close()
-    UI.progress_bar(1, 100)
+    UI.progress_bar(1, 100, "Geodata DSF finished")
     size_of_dsf = 28+size_of_head_atom+size_of_defn_atom + \
         size_of_geod_atom+size_of_cmds_atom
     UI.vprint(1, "     DSF file encoded, total size is :",

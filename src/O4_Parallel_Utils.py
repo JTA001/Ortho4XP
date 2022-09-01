@@ -15,7 +15,7 @@ class parallel_worker(threading.Thread):
             args = self._queue.get()
             if isinstance(args, str) and args == 'quit':
                 try:
-                    UI.progress_bar(self._progress['bar'], 100)
+                    UI.progress_bar(self._progress['bar'], 100, "Processing queue finished")
                 except:
                     pass
                 return 1
@@ -23,7 +23,7 @@ class parallel_worker(threading.Thread):
             if self._progress:
                 self._progress['done'] += 1
                 UI.progress_bar(self._progress['bar'], int(
-                    100*self._progress['done']/(self._progress['done']+self._queue.qsize())))
+                    100*self._progress['done']/(self._progress['done']+self._queue.qsize())), "Processing queue")
             if UI.red_flag:
                 return 0
 

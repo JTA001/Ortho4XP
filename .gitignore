@@ -13,3 +13,7 @@ Tiles/
 **/Thumbs.db
 **/*.bak
 .last_gui_params.txt
+testing/
+Sun-Valley-ttk-examples-master/
+import tkinter as tk.py
+from shapely.geometry import LineString.py

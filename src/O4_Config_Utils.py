@@ -1,8 +1,11 @@
 import os
 from math import ceil
 import tkinter as tk
-import tkinter.ttk as ttk
-from tkinter import FLAT, N, S, E, W, filedialog
+from tkinter import N, S, E, W, filedialog
+
+# Adding ttk
+from tkinter import ttk
+
 import O4_File_Names as FNAMES
 import O4_UI_Utils as UI
 import O4_DEM_Utils as DEM
@@ -247,7 +250,6 @@ class Ortho4XP_Config(tk.Toplevel):
     def __init__(self, parent):
 
         tk.Toplevel.__init__(self)
-        self.option_add("*Font", "TkFixedFont")
         self.title('Ortho4XP Config')
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
@@ -259,18 +261,20 @@ class Ortho4XP_Config(tk.Toplevel):
         # Ortho4XP main window reference
         self.parent = parent
 
+        # Add ttk.Style to this window
+        self.style = ttk.Style(self)
+
         # Frames
-        self.main_frame = tk.Frame(self, border=1,
-                                   relief=FLAT, bg='light grey')
-        self.frame_cfg = tk.Frame(
-            self.main_frame, border=1, padx=5, pady=self.pady, bg="light grey")
-        self.frame_dem = tk.Frame(
-            self.frame_cfg, border=1, padx=0, pady=self.pady, bg="light grey")
-        self.frame_lastbtn = tk.Frame(
-            self.main_frame, border=1, padx=5, pady=self.pady, bg="light grey")
+        # Modified to ttk.Frames
+        self.main_frame = ttk.Frame(self)
+        self.frame_cfg = ttk.Frame(self.main_frame, padding=(5, self.pady))
+        self.frame_dem = ttk.Frame(self.frame_cfg, padding=(5, self.pady))
+        self.frame_lastbtn = ttk.Frame(self.main_frame, padding=(5, self.pady))
+        
         # Frames properties
-        for j in range(8):
-            self.frame_cfg.columnconfigure(j, weight=1)
+        for i in range(4):
+            self.frame_cfg.columnconfigure(i, weight=1)
+        self.frame_cfg.grid(row=0, column=0, sticky=N+S+W+E)
         self.frame_cfg.rowconfigure(0, weight=1)
         for j in range(6):
             self.frame_lastbtn.columnconfigure(j, weight=1)
@@ -286,120 +290,142 @@ class Ortho4XP_Config(tk.Toplevel):
         for item in cfg_vars:
             self.v_[item] = tk.StringVar()
         self.entry_ = {}
-        self.folder_icon = tk.PhotoImage(
-            file=os.path.join(FNAMES.Utils_dir, 'Folder Searches.gif'))
+        self.folder_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-file-folder-32.png')) #updated the file folder icon
+        self.help_icon = tk.PhotoImage(file=os.path.join(FNAMES.Utils_dir, 'icons8-help-16.png')) #adding a help icon
 
         col = 0
         next_row = 0
+
+        # Grouping vars into Labelframes
         for (title, sub_list) in (("Vector data", list_vector_vars), ("Mesh", list_mesh_vars), ("Masks", list_mask_vars), ("DSF/Imagery", list_dsf_vars)):
-            tk.Label(self.frame_cfg, text=title, bg='light grey', anchor=W, font="TKFixedFont 14").grid(
-                row=0, column=col, columnspan=2, pady=(0, 10), sticky=N+S+E+W)
+            self.labelwidget = ttk.Label(self, text=title.capitalize(), font=12)
+            self.frame_cfg_labelframe_top = ttk.Labelframe(self.frame_cfg, labelwidget=self.labelwidget)
+            self.frame_cfg_labelframe_top.grid(
+                row=0, column=col, columnspan=3, sticky=N+W+E, padx=5, pady=5)
+            self.frame_cfg_labelframe_top.columnconfigure(1, weight=1)
+            
+            # Adding an inner frame to adjust the layout (spacing)
+            self.frame_cfg_frame_inner_top = ttk.Frame(self.frame_cfg_labelframe_top)
+            self.frame_cfg_frame_inner_top.grid(padx=5, pady=5, sticky=N+W+S+E, columnspan=3)
             row = 1
             for item in sub_list:
                 text = item if 'short_name' not in cfg_vars[item] else cfg_vars[item]['short_name']
-                ttk.Button(self.frame_cfg, text=text, takefocus=False, command=lambda item=item: self.popup(
-                    item, cfg_vars[item]['hint'])).grid(row=row, column=col, padx=2, pady=2, sticky=E+W+N+S)
+                # Replacing popup buttons with labels
+                ttk.Label(self.frame_cfg_frame_inner_top, text=text.capitalize() + ': ').grid(row=row, column=col, padx=2, pady=2, sticky=W+N+S)
                 if cfg_vars[item]['type'] == bool or 'values' in cfg_vars[item]:
-                    values = [True, False] if cfg_vars[item]['type'] == bool else [
-                        str(x) for x in cfg_vars[item]['values']]
-                    self.entry_[item] = ttk.Combobox(self.frame_cfg, values=values, textvariable=self.v_[
-                                                     item], width=6, state='readonly', style='O4.TCombobox')
+                    values = [True, False] if cfg_vars[item]['type'] == bool else [str(x) for x in cfg_vars[item]['values']]
+                    self.entry_[item] = ttk.Combobox(self.frame_cfg_frame_inner_top, values=values, textvariable=self.v_[item], width=5, state='readonly')
                 else:
-                    self.entry_[item] = ttk.Entry(
-                        self.frame_cfg, textvariable=self.v_[item], width=7)
-                self.entry_[item].grid(
-                    row=row, column=col+1, padx=(0, 20), pady=2, sticky=N+S+W)
+                    self.entry_[item] = ttk.Entry(self.frame_cfg_frame_inner_top, textvariable=self.v_[item], width=8)
+                self.entry_[item].grid(row=row, column=col+1, padx=(0, 2), pady=2, sticky=N+S+W)
+                # Add help icon button
+                tk.Button(self.frame_cfg_frame_inner_top, takefocus=False, command=lambda item=item: self.popup(item, cfg_vars[item]['hint']), image=self.help_icon, borderwidth=0, activebackground='#fafafa').grid(row=row, column=col+2, padx=2, pady=2, sticky=N+S+E+W)
                 row += 1
             next_row = max(next_row, row)
-            col += 2
+            col += 3
         row = next_row
 
-        self.frame_dem.grid(row=row, column=0, columnspan=6, sticky=N+S+W+E)
+        self.frame_dem.grid(row=row, column=0, sticky=N+S+W+E, columnspan=12)
+        for i in range(12):
+            self.frame_dem.columnconfigure(i, weight=1)
         item = 'custom_dem'
-        ttk.Button(self.frame_dem, text=item, takefocus=False, command=lambda item=item: self.popup(
-            item, cfg_vars[item]['hint'])).grid(row=0, column=0, padx=2, pady=2, sticky=E+W)
-        # self.entry_[item]=tk.Entry(self.frame_dem,textvariable=self.v_[item],bg='white',fg='black',width=80)
+        ttk.Label(self.frame_dem, text=item.capitalize()+': ', width=12).grid(row=0, column=0, padx=(5,2), pady=2, sticky=W+N+S)
         values = DEM.available_sources[1::2]
-        self.entry_[item] = ttk.Combobox(self.frame_dem, values=values, textvariable=self.v_[
-                                         item], width=80, style='O4.TCombobox')
-        self.entry_[item].grid(row=0, column=1, padx=(
-            2, 0), pady=8, sticky=N+S+W+E)
-        dem_button = ttk.Button(self.frame_dem, image=self.folder_icon,
-                                command=self.choose_dem, style='Flat.TButton')
-        dem_button.grid(row=0, column=2, padx=2, pady=0, sticky=W)
+        self.entry_[item] = ttk.Combobox(self.frame_dem, values=values, textvariable=self.v_[item], width=60)
+        self.entry_[item].grid(row=0, column=1, padx=(30, 0), pady=5, sticky=N+S+W+E, columnspan=4)
+        dem_button = tk.Button(self.frame_dem, image=self.folder_icon, command=self.choose_dem, borderwidth=0, activebackground='#fafafa', width=32)
+        dem_button.grid(row=0, column=5, padx=(2,0), pady=2, sticky=N+S+W)
         dem_button.bind("<Shift-ButtonPress-1>", self.add_dem)
+        tk.Button(self.frame_dem, takefocus=False, command=lambda item=item: self.popup(item, cfg_vars[item]['hint']), image=self.help_icon, borderwidth=0, activebackground='#fafafa', width=16).grid(row=0, column=6, padx=(0,20), pady=2, sticky=N+S+W)
+
         item = 'fill_nodata'
-        ttk.Button(self.frame_cfg, text=item, takefocus=False, command=lambda item=item: self.popup(
-            item, cfg_vars[item]['hint'])).grid(row=row, column=6, padx=2, pady=2, sticky=E+W)
+        ttk.Label(self.frame_dem, text=item.capitalize()+': ', width=10).grid(row=0, column=9, padx=(120,55), pady=2, sticky=E+N+S)
         values = [True, False]
-        self.entry_[item] = ttk.Combobox(self.frame_cfg, values=values, textvariable=self.v_[
-                                         item], width=6, state='readonly', style='O4.TCombobox')
-        self.entry_[item].grid(row=row, column=7, padx=2, pady=2, sticky=W)
+        self.entry_[item] = ttk.Combobox(self.frame_dem, values=values, textvariable=self.v_[item], width=5, state='readonly')
+        self.entry_[item].grid(row=0, column=10, padx=(10,0), pady=5, sticky=N+S+E)
+        tk.Button(self.frame_dem, takefocus=False, command=lambda item=item: self.popup(item, cfg_vars[item]['hint']), image=self.help_icon, borderwidth=0, activebackground='#fafafa', width=16).grid(row=0, column=11, padx=(2, 12), pady=2, sticky=N+S+E)
         row += 1
 
-        ttk.Separator(self.frame_cfg, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=8, sticky=N+S+E+W)
-        row += 1
-        tk.Label(self.frame_cfg, text="Application ", bg='light grey', anchor=W,
-                 font="TKFixedFont 14").grid(row=row, column=0, columnspan=4, pady=10, sticky=N+S+E+W)
-        row += 1
+        self.labelwidget = ttk.Label(self, text="Application", font=12)
+        self.frame_cfg_labelframe_bottom = ttk.Labelframe(
+            self.frame_cfg, labelwidget=self.labelwidget)
+        self.frame_cfg_labelframe_bottom.grid(
+            row=row, column=0, columnspan=15, sticky=N+W+E+S, padx=5, pady=5)
+        self.frame_cfg_frame_inner_matrix = ttk.Frame(
+            self.frame_cfg_labelframe_bottom)
+        self.frame_cfg_frame_inner_matrix.grid(
+            padx=5, pady=5, sticky=N+W+S+E, columnspan=15)
+        self.frame_cfg_frame_inner_bottom = ttk.Frame(
+            self.frame_cfg_labelframe_bottom)
+        self.frame_cfg_frame_inner_bottom.grid(
+            padx=5, pady=5, sticky=N+W+S+E, columnspan=8)
+        for i in range(15):
+            self.frame_cfg_labelframe_bottom.columnconfigure(i, weight=1)
+            self.frame_cfg_frame_inner_matrix.columnconfigure(i, weight=1)
 
+        row += 1
         l = ceil((len(gui_app_vars_short))/4)
         this_row = row
         j = 0
         for item in gui_app_vars_short:
-            col = 2*(j//l)
+            col = 4*(j//l)
             row = this_row+j % l
             text = item if 'short_name' not in cfg_vars[item] else cfg_vars[item]['short_name']
-            ttk.Button(self.frame_cfg, text=text, takefocus=False, command=lambda item=item: self.popup(
-                item, cfg_vars[item]['hint'])).grid(row=row, column=col, padx=2, pady=2, sticky=E+W+N+S)
+            ttk.Label(self.frame_cfg_frame_inner_matrix, text=item.capitalize() +
+                      ': ').grid(row=row, column=col, padx=(5, 2), pady=2, sticky=W+N+S)
             if cfg_vars[item]['type'] == bool or 'values' in cfg_vars[item]:
                 values = ['True', 'False'] if cfg_vars[item]['type'] == bool else [
                     str(x) for x in cfg_vars[item]['values']]
-                self.entry_[item] = ttk.Combobox(self.frame_cfg, values=values, textvariable=self.v_[
-                                                 item], width=6, state='readonly', style='O4.TCombobox')
+                self.entry_[item] = ttk.Combobox(self.frame_cfg_frame_inner_matrix, values=values, textvariable=self.v_[
+                                                 item], width=5, state='readonly')
             else:
-                self.entry_[item] = tk.Entry(self.frame_cfg, textvariable=self.v_[
-                                             item], width=7, bg='white', fg='black')
+                self.entry_[item] = ttk.Entry(
+                    self.frame_cfg_frame_inner_matrix, textvariable=self.v_[item], width=8)
             self.entry_[item].grid(row=row, column=col+1,
-                                   padx=(0, 20), pady=2, sticky=N+S+W)
+                                   padx=(0, 2), pady=2, sticky=N+S+E)
+            tk.Button(self.frame_cfg_frame_inner_matrix, takefocus=False, command=lambda item=item: self.popup(
+                item, cfg_vars[item]['hint']), image=self.help_icon, borderwidth=0, activebackground='#fafafa', width=16).grid(row=row, column=col+2, padx=2, pady=2, sticky=N+S+W)
+            if col+3 != 15:
+                ttk.Label(self.frame_cfg_frame_inner_matrix, width= 4).grid(row=row, column=col+3, sticky=N+E+S+W)
             j += 1
 
         row = this_row+l
 
         for item in gui_app_vars_long:
-            ttk.Button(self.frame_cfg, text=item, takefocus=False, command=lambda item=item: self.popup(
-                item, cfg_vars[item]['hint'])).grid(row=row, column=0, padx=2, pady=2, sticky=E+W+N+S)
-            self.entry_[item] = tk.Entry(self.frame_cfg, textvariable=self.v_[
-                                         item], bg='white', fg='black')
-            self.entry_[item].grid(row=row, column=1, columnspan=5, padx=(
-                2, 0), pady=2, sticky=N+S+E+W)
-            ttk.Button(self.frame_cfg, image=self.folder_icon, command=lambda item=item: self.choose_dir(
-                item), style='Flat.TButton').grid(row=row, column=6, padx=2, pady=0, sticky=N+S+W)
+            ttk.Label(self.frame_cfg_frame_inner_bottom, text=item +
+                      ': ').grid(row=row, column=0, padx=(5, 2), pady=2, sticky=W+N+S)
+            self.entry_[item] = ttk.Entry(
+                self.frame_cfg_frame_inner_bottom, textvariable=self.v_[item],width=80)
+            self.entry_[item].grid(row=row, column=1, columnspan=8, padx=(
+                0, 2), pady=2, sticky=N+S+E+W)
+            tk.Button(self.frame_cfg_frame_inner_bottom, image=self.folder_icon, command=lambda item=item: self.choose_dir(
+                item), borderwidth=0, activebackground='#fafafa').grid(row=row, column=9, padx=2, pady=0, sticky=N+S+E)
+            tk.Button(self.frame_cfg_frame_inner_bottom, takefocus=False, command=lambda item=item: self.popup(
+                item, cfg_vars[item]['hint']), image=self.help_icon, borderwidth=0, activebackground='#fafafa', width=16).grid(row=row, column=10, padx=2, pady=2, sticky=W+N+S)
             row += 1
 
         self.button1 = ttk.Button(
-            self.frame_lastbtn, text='Load Tile Cfg ', command=self.load_tile_cfg)
+            self.frame_lastbtn, text='Load Tile Cfg', command=self.load_tile_cfg, width=10)
         self.button1.grid(row=0, column=0, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
         self.button2 = ttk.Button(
-            self.frame_lastbtn, text='Write Tile Cfg', command=self.write_tile_cfg)
+            self.frame_lastbtn, text='Write Tile Cfg', command=self.write_tile_cfg, width=10)
         self.button2.grid(row=0, column=1, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
         self.button3 = ttk.Button(
-            self.frame_lastbtn, text='Reload App Cfg', command=self.load_global_cfg)
+            self.frame_lastbtn, text='Reload App Cfg', command=self.load_global_cfg, width=10)
         self.button3.grid(row=0, column=2, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
         self.button4 = ttk.Button(
-            self.frame_lastbtn, text='Write App Cfg ', command=self.write_global_cfg)
+            self.frame_lastbtn, text='Write App Cfg', command=self.write_global_cfg, width=10)
         self.button4.grid(row=0, column=3, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
         self.button5 = ttk.Button(
-            self.frame_lastbtn, text='    Apply     ', command=self.apply_changes)
+            self.frame_lastbtn, text='Apply', command=self.apply_changes, width=10)
         self.button5.grid(row=0, column=4, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
         self.button6 = ttk.Button(
-            self.frame_lastbtn, text='     Exit     ', command=self.destroy)
+            self.frame_lastbtn, text='Exit', command=self.destroy, width=10)
         self.button6.grid(row=0, column=5, padx=5,
                           pady=self.pady, sticky=N+S+E+W)
 
@@ -574,12 +600,14 @@ class Ortho4XP_Config(tk.Toplevel):
             self.popup("ERROR", error_text)
 
     def popup(self, header, input_text):
+        self.win_x = self.winfo_rootx() + 250
+        self.win_y = self.winfo_rooty() + 25
         self.popupwindow = tk.Toplevel()
-        self.popupwindow.wm_title("Hint!")
-        ttk.Label(self.popupwindow, text=header+" :", anchor=W,
-                  font="TkBoldFont").pack(side="top", fill="x", padx=5, pady=3)
-        ttk.Label(self.popupwindow, text=input_text, wraplength=600,
-                  anchor=W).pack(side="top", fill="x", padx=5, pady=0)
-        ttk.Button(self.popupwindow, text="Ok",
+        self.popupwindow.geometry(f'+{self.win_x}+{self.win_y}')
+        self.popupwindow.wm_title(header.capitalize())
+        self.popupwindow.focus_force()
+        ttk.Label(self.popupwindow, text=input_text, wraplength=490,
+                  anchor='center').pack(side="top", fill="both", padx=20, pady=(20,5))
+        ttk.Button(self.popupwindow, text="OK",
                    command=self.popupwindow.destroy).pack(pady=5)
         return

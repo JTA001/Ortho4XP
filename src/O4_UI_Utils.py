@@ -13,9 +13,10 @@ log = True
 ##############################################################################
 
 
-def progress_bar(nbr, percentage, message=None):
+def progress_bar(nbr, percentage, label, message=None):
     if gui:
         gui.pgrbv[nbr].set(percentage)
+        gui.pgrbv_label[nbr].set(label)
 ##############################################################################
 
 ##############################################################################

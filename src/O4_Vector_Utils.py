@@ -1,7 +1,9 @@
 from math import ceil, sqrt, atan2
 import numpy
+import warnings
 from shapely import geometry, affinity
 from shapely import ops
+from shapely.errors import ShapelyDeprecationWarning
 from rtree import index
 import O4_UI_Utils as UI
 import O4_Geo_Utils as GEO
@@ -245,7 +247,7 @@ class Vector_Map():
             return (alpha0 > 0 or alpha1 > 0) and (alpha0 < 1 or alpha1 < 1) and [alpha0, alpha1, beta0, beta1]
 
     def encode_MultiPolygon(self, multipol, pol_to_alt, marker, area_limit=1e-10, check=True, simplify=False, refine=False, cut=True):
-        UI.progress_bar(1, 0)
+        UI.progress_bar(1, 0, "Encoding Multi Polygon")
         if isinstance(multipol, dict):
             iterloop = multipol.values()
             todo = len(multipol)
@@ -267,7 +269,7 @@ class Vector_Map():
                     polygon = geometry.polygon.orient(polygon)
                 except:
                     continue
-                way = numpy.array(polygon.exterior)
+                way = numpy.array(polygon.exterior.coords)
                 if refine:
                     way = refine_way(way, refine)
                 alti_way = pol_to_alt(way).reshape((len(way), 1))
@@ -275,31 +277,33 @@ class Vector_Map():
                 for linestring in polygon.interiors:
                     if linestring.is_empty:
                         continue
-                    way = numpy.array(linestring)
+                    with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                        warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                        way = numpy.array(linestring)
                     if refine:
                         way = refine_way(way, refine)
                     alti_way = pol_to_alt(way).reshape((len(way), 1))
                     self.insert_way(numpy.hstack(
                         [way, alti_way]), marker, check)
                 try:
-                    if marker in self.seeds:
-                        self.seeds[marker].append(
-                            numpy.array(polygon.representative_point()))
-                    else:
-                        self.seeds[marker] = [numpy.array(
-                            polygon.representative_point())]
+                    with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                        warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                        if marker in self.seeds:
+                            self.seeds[marker].append(numpy.array(polygon.representative_point()))
+                        else:
+                            self.seeds[marker] = [numpy.array(polygon.representative_point())]
                 except Exception as e:
                     UI.lvprint(2, "Topologal inconsistency trying to tag a polygon with node ", list(
                         polygon.exterior.coords)[0])
             done += 1
             if done % step == 0:
-                UI.progress_bar(1, int(100*done/todo))
+                UI.progress_bar(1, int(100*done/todo), "Encoding Multi Polygon")
                 if UI.red_flag:
                     return 0
         return 1
 
     def encode_MultiLineString(self, multilinestring, line_to_alt, marker, check=True, refine=False, skip_cut=False):
-        UI.progress_bar(1, 0)
+        UI.progress_bar(1, 0, "Encoding Multi Line String")
         multilinestring = ensure_MultiLineString(multilinestring)
         todo = len(multilinestring.geoms)
         step = int(todo/100)+1
@@ -310,14 +314,16 @@ class Vector_Map():
             for linestring in ensure_MultiLineString(line).geoms:
                 if linestring.is_empty:
                     continue
-                way = numpy.array(linestring)
+                with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                    warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                    way = numpy.array(linestring)
                 if refine:
                     way = refine_way(way, refine)
                 alti_way = line_to_alt(way).reshape((len(way), 1))
                 self.insert_way(numpy.hstack([way, alti_way]), marker, check)
             done += 1
             if done % step == 0:
-                UI.progress_bar(1, int(100*done/todo))
+                UI.progress_bar(1, int(100*done/todo), "Encoding Multi Line String")
                 if UI.red_flag:
                     return 0
         return 1
@@ -483,7 +489,7 @@ def MultiPolygon_to_Indexed_Polygons(multipol, merge_overlappings=True):
         id_pol += 1
         return id_pol
     ########################################################################
-    UI.progress_bar(1, 0)
+    UI.progress_bar(1, 0, "Converting Multi Polygon to Indexed Polygons")
     idx_pol = index.Index()
     dico_pol = {}
     id_pol = 0
@@ -509,7 +515,7 @@ def MultiPolygon_to_Indexed_Polygons(multipol, merge_overlappings=True):
             id_pol = add_pol(pol, id_pol)
         done += 1
         if done % step == 0:
-            UI.progress_bar(1, int(100*done/todo))
+            UI.progress_bar(1, int(100*done/todo), "Converting Multi Polygon to Indexed Polygons")
             if UI.red_flag:
                 return 0
     return (idx_pol, dico_pol)
@@ -724,25 +730,25 @@ def improved_buffer(input_geometry, buffer_width, separation_width, simplify_len
     separation_width *= GEO.m_to_lat
     simplify_length *= GEO.m_to_lat
     if show_progress:
-        UI.progress_bar(1, 0)
+        UI.progress_bar(1, 0, "Improving Buffer")
     input_geometry = affinity.affine_transform(
         input_geometry, [scalx, 0, 0, 1, 0, 0])
     output_geometry = input_geometry.buffer(
         buffer_width+separation_width, join_style=2, mitre_limit=1.5, resolution=1)
     if show_progress:
-        UI.progress_bar(1, 40)
+        UI.progress_bar(1, 40, "Improving Buffer")
     if UI.red_flag:
         return geometry.Polygon()
     output_geometry = output_geometry.buffer(
         -1*separation_width, join_style=2, mitre_limit=1.5, resolution=1)
     if show_progress:
-        UI.progress_bar(1, 80)
+        UI.progress_bar(1, 80, "Improving Buffer")
     if UI.red_flag:
         return geometry.Polygon()
     if simplify_length:
         output_geometry = output_geometry.simplify(simplify_length)
     if show_progress:
-        UI.progress_bar(1, 100)
+        UI.progress_bar(1, 100, "Improving Buffer")
     if UI.red_flag:
         return geometry.Polygon()
     output_geometry = affinity.affine_transform(

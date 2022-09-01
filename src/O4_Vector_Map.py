@@ -2,7 +2,9 @@ import os
 import time
 from math import pi, sin, cos, sqrt, atan, exp
 import numpy
+import warnings
 from shapely import geometry, ops
+from shapely.errors import ShapelyDeprecationWarning
 #from PIL import Image, ImageDraw, ImageFilter
 import O4_DEM_Utils as DEM
 import O4_UI_Utils as UI
@@ -322,11 +324,13 @@ def include_sea(vector_map, tile):
             UI.vprint(1, "      Found ", len(
                 sea_area.geoms), "contiguous patch(es).")
         for polygon in sea_area.geoms:
-            seed = numpy.array(polygon.representative_point())
-            if 'SEA' in vector_map.seeds:
-                vector_map.seeds['SEA'].append(seed)
-            else:
-                vector_map.seeds['SEA'] = [seed]
+            with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                seed = numpy.array(polygon.representative_point())
+                if 'SEA' in vector_map.seeds:
+                    vector_map.seeds['SEA'].append(seed)
+                else:
+                    vector_map.seeds['SEA'] = [seed]
 ##############################################################################
 ##############################################################################
 
@@ -560,24 +564,26 @@ def include_patches(vector_map, tile):
             alti_way = alti_way.reshape((len(alti_way), 1))
             if (way[0] == way[-1]).all():
                 try:
-                    pol = geometry.Polygon(way)
-                    if pol.is_valid and pol.area:
-                        patches_area = patches_area.union(pol)
-                        vector_map.insert_way(numpy.hstack(
-                            [way, alti_way]), 'INTERP_ALT', check=True)
-                        seed = numpy.array(pol.representative_point())
-                        if 'INTERP_ALT' in vector_map.seeds:
-                            vector_map.seeds['INTERP_ALT'].append(seed)
+                    with warnings.catch_warnings(): #catching shapely 2.0 deprecation warnings
+                        warnings.filterwarnings("ignore",category=ShapelyDeprecationWarning)
+                        pol = geometry.Polygon(way)
+                        if pol.is_valid and pol.area:
+                            patches_area = patches_area.union(pol)
+                            vector_map.insert_way(numpy.hstack(
+                                [way, alti_way]), 'INTERP_ALT', check=True)
+                            seed = numpy.array(pol.representative_point())
+                            if 'INTERP_ALT' in vector_map.seeds:
+                                vector_map.seeds['INTERP_ALT'].append(seed)
+                            else:
+                                vector_map.seeds['INTERP_ALT'] = [seed]
+                            if cplx_way and cuts_long:
+                                for i in range(1, cuts_long):
+                                    id0 = vector_map.dico_nodes[tuple(way[i])]
+                                    id1 = vector_map.dico_nodes[tuple(way[-2-i])]
+                                    vector_map.insert_edge(
+                                        id0, id1, vector_map.dico_attributes['DUMMY'])
                         else:
-                            vector_map.seeds['INTERP_ALT'] = [seed]
-                        if cplx_way and cuts_long:
-                            for i in range(1, cuts_long):
-                                id0 = vector_map.dico_nodes[tuple(way[i])]
-                                id1 = vector_map.dico_nodes[tuple(way[-2-i])]
-                                vector_map.insert_edge(
-                                    id0, id1, vector_map.dico_attributes['DUMMY'])
-                    else:
-                        UI.vprint(2, "     Skipping invalid patch polygon.")
+                            UI.vprint(2, "     Skipping invalid patch polygon.")
                 except:
                     UI.vprint(2, "     Skipping invalid patch polygon.")
             else:
